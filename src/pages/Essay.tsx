@@ -137,16 +137,41 @@ const Essay = () => {
             {feedback ? (
               <>
                 {/* Score Display */}
-                <div className="glass rounded-3xl p-6 text-center">
+                <div className="glass rounded-3xl p-8 text-center scale-in">
                   <div className="relative inline-flex items-center justify-center">
-                    <div className={`text-6xl font-bold ${getScoreColor(feedback.score, 1000)}`}>
-                      {feedback.score}
-                    </div>
-                    <div className="absolute -top-2 -right-8">
-                      <Trophy className="h-8 w-8 text-amber-400" />
+                    {/* Animated ring */}
+                    <svg className="absolute w-40 h-40 -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="6"
+                        className="text-white/10"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                        className={`${feedback.score >= 800 ? 'text-success' : feedback.score >= 600 ? 'text-amber-400' : 'text-destructive'} transition-all duration-1000`}
+                        style={{
+                          strokeDasharray: `${(feedback.score / 1000) * 283} 283`,
+                          stroke: 'currentColor',
+                        }}
+                      />
+                    </svg>
+                    <div className="flex flex-col items-center">
+                      <div className={`text-5xl font-bold ${getScoreColor(feedback.score, 1000)}`}>
+                        {feedback.score}
+                      </div>
+                      <Trophy className="h-6 w-6 text-amber-400 mt-1" />
                     </div>
                   </div>
-                  <p className="text-muted-foreground mt-2">de 1000 pontos</p>
+                  <p className="text-muted-foreground mt-4">de 1000 pontos</p>
                 </div>
 
                 {/* Competencies */}
