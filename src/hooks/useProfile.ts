@@ -11,6 +11,8 @@ export interface Profile {
   streak_count: number | null;
   last_activity_date: string | null;
   avatar_url: string | null;
+  is_pro: boolean | null;
+  xp_points: number | null;
 }
 
 export function useProfile() {
@@ -62,9 +64,15 @@ export function useProfile() {
     }
   };
 
+  const addXP = async (amount: number) => {
+    if (!user || !profile) return;
+    const newXP = (profile.xp_points || 0) + amount;
+    await updateProfile({ xp_points: newXP });
+  };
+
   useEffect(() => {
     fetchProfile();
   }, [user]);
 
-  return { profile, loading, updateProfile, refetch: fetchProfile };
+  return { profile, loading, updateProfile, refetch: fetchProfile, addXP };
 }

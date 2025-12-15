@@ -5,16 +5,24 @@ import {
   Beaker, 
   CalendarDays, 
   LogOut,
-  BookOpen,
-  Flame
+  Flame,
+  FileText,
+  Brain,
+  MessageSquare,
+  Timer,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
-  { to: "/lab", icon: Beaker, label: "Laboratório" },
+  { to: "/lab", icon: Beaker, label: "Questões" },
+  { to: "/essay", icon: FileText, label: "Redação", premium: true },
+  { to: "/flashcards", icon: Brain, label: "Flashcards", premium: true },
+  { to: "/chat", icon: MessageSquare, label: "Chat IA" },
   { to: "/planner", icon: CalendarDays, label: "Agenda" },
+  { to: "/focus", icon: Timer, label: "Focus Room" },
 ];
 
 const Sidebar = () => {
@@ -23,28 +31,36 @@ const Sidebar = () => {
   const { profile } = useProfile();
 
   return (
-    <div className="glass h-full w-60 rounded-3xl p-5 flex flex-col">
+    <div className="glass h-full w-64 rounded-3xl p-5 flex flex-col">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center">
-          <BookOpen className="h-6 w-6 text-primary" />
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+          <Sparkles className="h-6 w-6 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-foreground">Primo</h1>
-          <p className="text-xs text-muted-foreground">Estude com IA</p>
+          <h1 className="text-xl font-bold text-foreground">Nexus Study</h1>
+          <p className="text-xs text-muted-foreground">Plataforma Premium</p>
         </div>
       </div>
 
       {/* Streak Badge */}
       {profile && profile.streak_count !== undefined && profile.streak_count > 0 && (
-        <div className="streak-badge mb-6 justify-center">
+        <div className="streak-badge mb-4 justify-center">
           <Flame className="h-5 w-5" />
           <span>{profile.streak_count} dias</span>
         </div>
       )}
 
+      {/* XP Badge */}
+      {profile && profile.xp_points !== undefined && profile.xp_points > 0 && (
+        <div className="glass rounded-xl px-4 py-2 mb-6 text-center">
+          <span className="text-sm text-muted-foreground">XP Total: </span>
+          <span className="font-bold text-primary">{profile.xp_points}</span>
+        </div>
+      )}
+
       {/* Navigation */}
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 space-y-1">
         {navItems.map((item) => {
           const isActive = item.end 
             ? location.pathname === item.to 
@@ -60,7 +76,12 @@ const Sidebar = () => {
               )}
             >
               <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.premium && !profile?.is_pro && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  PRO
+                </span>
+              )}
             </NavLink>
           );
         })}
@@ -79,7 +100,7 @@ const Sidebar = () => {
               {profile?.full_name || "Estudante"}
             </p>
             <p className="text-xs text-muted-foreground truncate">
-              {profile?.target_course || "Configure seu perfil"}
+              {profile?.is_pro ? "Nexus Pro ✨" : "Plano Gratuito"}
             </p>
           </div>
         </div>
