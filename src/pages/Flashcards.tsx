@@ -300,9 +300,9 @@ const Flashcards = () => {
                     transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
                   }}
                 >
-                  {/* Front */}
+                {/* Front */}
                   <div 
-                    className="absolute inset-0 glass rounded-3xl p-8 flex items-center justify-center text-center backface-hidden"
+                    className="absolute inset-0 glass rounded-3xl p-8 flex items-center justify-center text-center backface-hidden select-none"
                     style={{ backfaceVisibility: 'hidden' }}
                   >
                     <div>
@@ -315,7 +315,7 @@ const Flashcards = () => {
 
                   {/* Back */}
                   <div 
-                    className="absolute inset-0 glass-strong rounded-3xl p-8 flex items-center justify-center text-center backface-hidden"
+                    className="absolute inset-0 glass-strong rounded-3xl p-8 flex items-center justify-center text-center backface-hidden select-none"
                     style={{ 
                       backfaceVisibility: 'hidden',
                       transform: 'rotateY(180deg)'

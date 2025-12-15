@@ -18,11 +18,25 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+const App = () => {
+  const handleContextMenu = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // Allow context menu on inputs and textareas
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return;
+    }
+    e.preventDefault();
+    import("sonner").then(({ toast }) => {
+      toast.info("O conteúdo do Nexus é protegido ©");
+    });
+  };
+
+  return (
+    <div onContextMenu={handleContextMenu}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -47,8 +61,10 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+      </TooltipProvider>
+    </QueryClientProvider>
+    </div>
+  );
+};
 
 export default App;

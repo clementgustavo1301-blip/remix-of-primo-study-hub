@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { correctEssay, EssayFeedback } from "@/services/aiService";
 import PremiumGuard from "@/components/PremiumGuard";
 import { FileText, Send, Loader2, Trophy, Target } from "lucide-react";
+import Watermark from "@/components/Watermark";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -149,11 +150,13 @@ const Essay = () => {
                 </div>
 
                 {/* Competencies */}
-                <div className="glass rounded-3xl p-6 space-y-4">
-                  <h3 className="font-semibold text-foreground flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    Avaliação por Competência
-                  </h3>
+                <div className="glass rounded-3xl p-6 space-y-4 relative overflow-hidden">
+                  <Watermark />
+                  <div className="relative z-10 select-none">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      Avaliação por Competência
+                    </h3>
                   
                   {Object.entries(feedback.competencies).map(([key, comp]) => (
                     <div key={key} className="p-4 rounded-2xl bg-white/5 border border-white/10">
@@ -174,10 +177,11 @@ const Essay = () => {
                       <p className="text-sm text-muted-foreground">{comp.feedback}</p>
                     </div>
                   ))}
+                  </div>
                 </div>
 
                 {/* General Feedback */}
-                <div className="glass rounded-3xl p-6">
+                <div className="glass rounded-3xl p-6 select-none">
                   <h3 className="font-semibold text-foreground mb-3">Feedback Geral</h3>
                   <p className="text-muted-foreground">{feedback.generalFeedback}</p>
                 </div>

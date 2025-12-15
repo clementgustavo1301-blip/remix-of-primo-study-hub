@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Sparkles, Flame, Loader2, CheckCircle, XCircle, BookmarkPlus } from "lucide-react";
+import Watermark from "@/components/Watermark";
 
 const subjects = ["Matemática", "Física", "Química", "Biologia", "História", "Geografia", "Português", "Literatura", "Filosofia", "Sociologia"];
 
@@ -118,9 +119,11 @@ const QuestionLab = () => {
 
       {/* Question Card */}
       {question && (
-        <div className="glass rounded-3xl p-6 space-y-6 scale-in">
-          {fromPool && <span className="text-xs bg-secondary/30 text-secondary px-3 py-1 rounded-full">Banco Comunitário</span>}
-          <p className="text-lg text-foreground leading-relaxed">{question.question}</p>
+        <div className="glass rounded-3xl p-6 space-y-6 scale-in relative overflow-hidden">
+          <Watermark />
+          <div className="relative z-10 select-none">
+            {fromPool && <span className="text-xs bg-secondary/30 text-secondary px-3 py-1 rounded-full">Banco Comunitário</span>}
+            <p className="text-lg text-foreground leading-relaxed">{question.question}</p>
           <div className="space-y-3">
             {question.options.map((opt, idx) => (
               <button
@@ -157,6 +160,7 @@ const QuestionLab = () => {
               </Button>
             </div>
           )}
+          </div>
         </div>
       )}
     </div>

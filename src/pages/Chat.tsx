@@ -133,8 +133,8 @@ const Chat = () => {
                     ? "bg-secondary/20 border border-secondary/30" 
                     : "bg-white/5 border border-white/10"
                 )}>
-                  {msg.role === 'assistant' ? (
-                    <div className="prose prose-invert prose-sm max-w-none">
+                {msg.role === 'assistant' ? (
+                    <div className="prose prose-invert prose-sm max-w-none select-none">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
