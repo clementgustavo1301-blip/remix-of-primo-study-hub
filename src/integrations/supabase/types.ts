@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      essays: {
+        Row: {
+          content: string
+          created_at: string | null
+          feedback: Json | null
+          id: string
+          score: number | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          feedback?: Json | null
+          id?: string
+          score?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          feedback?: Json | null
+          id?: string
+          score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string | null
@@ -80,6 +107,39 @@ export type Database = {
         }
         Relationships: []
       }
+      flashcards: {
+        Row: {
+          back: string
+          created_at: string | null
+          ease_factor: number | null
+          front: string
+          id: string
+          interval: number | null
+          next_review: string | null
+          user_id: string
+        }
+        Insert: {
+          back: string
+          created_at?: string | null
+          ease_factor?: number | null
+          front: string
+          id?: string
+          interval?: number | null
+          next_review?: string | null
+          user_id: string
+        }
+        Update: {
+          back?: string
+          created_at?: string | null
+          ease_factor?: number | null
+          front?: string
+          id?: string
+          interval?: number | null
+          next_review?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -87,10 +147,12 @@ export type Database = {
           current_year: string | null
           full_name: string | null
           id: string
+          is_pro: boolean | null
           last_activity_date: string | null
           streak_count: number | null
           target_course: string | null
           updated_at: string | null
+          xp_points: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -98,10 +160,12 @@ export type Database = {
           current_year?: string | null
           full_name?: string | null
           id: string
+          is_pro?: boolean | null
           last_activity_date?: string | null
           streak_count?: number | null
           target_course?: string | null
           updated_at?: string | null
+          xp_points?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -109,10 +173,12 @@ export type Database = {
           current_year?: string | null
           full_name?: string | null
           id?: string
+          is_pro?: boolean | null
           last_activity_date?: string | null
           streak_count?: number | null
           target_course?: string | null
           updated_at?: string | null
+          xp_points?: number | null
         }
         Relationships: []
       }
@@ -173,6 +239,39 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_correct?: boolean
+          subject?: string
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_tasks: {
+        Row: {
+          created_at: string | null
+          date: string | null
+          duration_minutes: number | null
+          id: string
+          is_done: boolean | null
+          subject: string
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_done?: boolean | null
+          subject: string
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_done?: boolean | null
           subject?: string
           topic?: string | null
           user_id?: string
