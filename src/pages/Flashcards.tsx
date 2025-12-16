@@ -164,27 +164,28 @@ const Flashcards = () => {
 
   return (
     <PremiumGuard featureName="Flashcards Ilimitados">
-      <div className="space-y-6 slide-up">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-secondary/20 flex items-center justify-center">
-              <Brain className="h-7 w-7 text-secondary" />
+      <div className="space-y-4 md:space-y-6 slide-up px-2 md:px-0">
+        {/* Header - Responsive */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-secondary/20 flex items-center justify-center flex-shrink-0">
+              <Brain className="h-6 w-6 md:h-7 md:w-7 text-secondary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Smart Flashcards</h1>
-              <p className="text-muted-foreground">Memorização com repetição espaçada</p>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Smart Flashcards</h1>
+              <p className="text-sm md:text-base text-muted-foreground">Memorização com repetição espaçada</p>
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2 md:gap-3">
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="glass glass-hover rounded-xl">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Criar Manual
+                <Button variant="outline" className="glass glass-hover rounded-xl flex-1 md:flex-none text-sm md:text-base py-2 px-3 md:px-4">
+                  <Plus className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Criar </span>Manual
                 </Button>
               </DialogTrigger>
-              <DialogContent className="glass-strong border-white/20">
+              <DialogContent className="glass-strong border-white/20 mx-4 max-w-[calc(100vw-2rem)] md:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Novo Flashcard</DialogTitle>
                 </DialogHeader>
@@ -217,12 +218,12 @@ const Flashcards = () => {
 
             <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
               <DialogTrigger asChild>
-                <Button className="btn-primary">
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Gerar com IA
+                <Button className="btn-primary flex-1 md:flex-none text-sm md:text-base py-2 px-3 md:px-4">
+                  <Sparkles className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Gerar com </span>IA
                 </Button>
               </DialogTrigger>
-              <DialogContent className="glass-strong border-white/20">
+              <DialogContent className="glass-strong border-white/20 mx-4 max-w-[calc(100vw-2rem)] md:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Gerar Flashcards com IA</DialogTitle>
                 </DialogHeader>
@@ -232,7 +233,7 @@ const Flashcards = () => {
                     <Input
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
-                      placeholder="Ex: Revolução Francesa, Mitose, Leis de Newton..."
+                      placeholder="Ex: Revolução Francesa, Mitose..."
                       className="input-glass"
                     />
                   </div>
@@ -262,29 +263,29 @@ const Flashcards = () => {
         {/* Study Area */}
         <div className="flex flex-col items-center">
           {loading ? (
-            <div className="glass rounded-3xl p-12 text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <div className="glass rounded-2xl md:rounded-3xl p-8 md:p-12 text-center">
+              <Loader2 className="h-10 w-10 md:h-12 md:w-12 animate-spin text-primary mx-auto" />
             </div>
           ) : cards.length === 0 ? (
-            <div className="glass rounded-3xl p-12 text-center max-w-md">
-              <Brain className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
+            <div className="glass rounded-2xl md:rounded-3xl p-8 md:p-12 text-center max-w-md w-full">
+              <Brain className="h-12 w-12 md:h-16 md:w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-base md:text-lg font-medium text-foreground mb-2">
                 Nenhum card para revisar
               </h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-sm md:text-base text-muted-foreground mb-4">
                 Crie novos flashcards ou aguarde os próximos para revisar
               </p>
             </div>
           ) : currentCard ? (
             <>
-              <div className="mb-4 text-muted-foreground">
+              <div className="mb-3 md:mb-4 text-sm md:text-base text-muted-foreground">
                 Card {currentIndex + 1} de {cards.length}
               </div>
 
               {/* Flashcard */}
               <div 
                 className={cn(
-                  "relative w-full max-w-lg h-80 cursor-pointer perspective-1000",
+                  "relative w-full max-w-lg h-56 md:h-80 cursor-pointer perspective-1000",
                   "transition-transform duration-500"
                 )}
                 onClick={() => setIsFlipped(!isFlipped)}
@@ -302,57 +303,57 @@ const Flashcards = () => {
                 >
                 {/* Front */}
                   <div 
-                    className="absolute inset-0 glass rounded-3xl p-8 flex items-center justify-center text-center backface-hidden select-none"
+                    className="absolute inset-0 glass rounded-2xl md:rounded-3xl p-6 md:p-8 flex items-center justify-center text-center backface-hidden select-none"
                     style={{ backfaceVisibility: 'hidden' }}
                   >
                     <div>
-                      <span className="text-xs uppercase tracking-wider text-muted-foreground mb-4 block">
+                      <span className="text-xs uppercase tracking-wider text-muted-foreground mb-3 md:mb-4 block">
                         Clique para virar
                       </span>
-                      <p className="text-xl font-medium text-foreground">{currentCard.front}</p>
+                      <p className="text-lg md:text-xl font-medium text-foreground">{currentCard.front}</p>
                     </div>
                   </div>
 
                   {/* Back */}
                   <div 
-                    className="absolute inset-0 glass-strong rounded-3xl p-8 flex items-center justify-center text-center backface-hidden select-none"
+                    className="absolute inset-0 glass-strong rounded-2xl md:rounded-3xl p-6 md:p-8 flex items-center justify-center text-center backface-hidden select-none"
                     style={{ 
                       backfaceVisibility: 'hidden',
                       transform: 'rotateY(180deg)'
                     }}
                   >
                     <div>
-                      <span className="text-xs uppercase tracking-wider text-primary mb-4 block">
+                      <span className="text-xs uppercase tracking-wider text-primary mb-3 md:mb-4 block">
                         Resposta
                       </span>
-                      <p className="text-xl font-medium text-foreground">{currentCard.back}</p>
+                      <p className="text-lg md:text-xl font-medium text-foreground">{currentCard.back}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Answer Buttons */}
+              {/* Answer Buttons - Responsive */}
               {isFlipped && (
-                <div className="flex gap-4 mt-8 slide-up">
+                <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-6 md:mt-8 slide-up w-full max-w-lg">
                   <Button
                     onClick={() => handleAnswer('wrong')}
-                    className="bg-destructive/20 hover:bg-destructive/30 text-destructive border border-destructive/30 rounded-xl px-6"
+                    className="bg-destructive/20 hover:bg-destructive/30 text-destructive border border-destructive/30 rounded-xl px-4 md:px-6 py-2 text-sm md:text-base flex-1 min-w-[90px] md:flex-none"
                   >
-                    <X className="h-5 w-5 mr-2" />
+                    <X className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
                     Errei
                   </Button>
                   <Button
                     onClick={() => handleAnswer('hard')}
-                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded-xl px-6"
+                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded-xl px-4 md:px-6 py-2 text-sm md:text-base flex-1 min-w-[90px] md:flex-none"
                   >
-                    <Clock className="h-5 w-5 mr-2" />
+                    <Clock className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
                     Difícil
                   </Button>
                   <Button
                     onClick={() => handleAnswer('easy')}
-                    className="bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-xl px-6"
+                    className="bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-xl px-4 md:px-6 py-2 text-sm md:text-base flex-1 min-w-[90px] md:flex-none"
                   >
-                    <Check className="h-5 w-5 mr-2" />
+                    <Check className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
                     Fácil
                   </Button>
                 </div>
@@ -360,7 +361,7 @@ const Flashcards = () => {
 
               <Button 
                 variant="ghost" 
-                className="mt-4 text-muted-foreground"
+                className="mt-3 md:mt-4 text-muted-foreground text-sm md:text-base"
                 onClick={() => {
                   setIsFlipped(false);
                   setCurrentIndex((currentIndex + 1) % cards.length);
