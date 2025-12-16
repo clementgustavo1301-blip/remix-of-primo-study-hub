@@ -143,7 +143,7 @@ Cada flashcard deve ter uma pergunta/conceito na frente e a resposta/explicaçã
   throw new Error('Failed to generate flashcards');
 }
 
-async function createStudyPlan(hoursPerDay: number, focus: string, daysCount: number) {
+async function createStudyPlan(hoursPerDay: number, focus: string, weakness: string, daysCount: number) {
   const today = new Date();
   const dates = Array.from({ length: daysCount }, (_, i) => {
     const date = new Date(today);
@@ -151,16 +151,22 @@ async function createStudyPlan(hoursPerDay: number, focus: string, daysCount: nu
     return date.toISOString().split('T')[0];
   });
 
-  const systemPrompt = `Você é um planejador de estudos especializado em vestibulares.
-Crie um cronograma de estudos equilibrado e eficiente.
-Distribua as matérias de forma inteligente ao longo da semana.
-Considere pausas e alternância entre matérias pesadas e leves.`;
+  const systemPrompt = `Aja como um coach de estudos especialista em vestibulares e ENEM.
+Crie um cronograma de estudos altamente personalizado e eficiente.
+
+REGRAS IMPORTANTES:
+1. Distribua as matérias focando MAIS nas dificuldades citadas pelo aluno
+2. Alterne entre matérias "pesadas" (exatas) e "leves" (humanas) para evitar fadiga mental
+3. Cada bloco de estudo deve ter entre 45-90 minutos (não ultrapassar 90min por sessão)
+4. O total de minutos por dia deve corresponder às horas disponíveis
+5. Seja ESPECÍFICO nos tópicos (ex: "Cinemática - MRU e MRUV" em vez de apenas "Física")
+6. Inclua revisões de conteúdos importantes`;
 
   const tools = [{
     type: 'function',
     function: {
       name: 'create_schedule',
-      description: 'Cria cronograma de estudos',
+      description: 'Cria cronograma de estudos personalizado',
       parameters: {
         type: 'object',
         properties: {
@@ -169,9 +175,9 @@ Considere pausas e alternância entre matérias pesadas e leves.`;
             items: {
               type: 'object',
               properties: {
-                subject: { type: 'string', description: 'Matéria' },
-                topic: { type: 'string', description: 'Tópico específico' },
-                duration_minutes: { type: 'number', description: 'Duração em minutos' },
+                subject: { type: 'string', description: 'Matéria (ex: Matemática, Física, Português, Redação, etc)' },
+                topic: { type: 'string', description: 'Tópico específico e detalhado para estudo' },
+                duration_minutes: { type: 'number', description: 'Duração em minutos (45-90)' },
                 date: { type: 'string', description: 'Data no formato YYYY-MM-DD' }
               },
               required: ['subject', 'topic', 'duration_minutes', 'date']
@@ -183,13 +189,22 @@ Considere pausas e alternância entre matérias pesadas e leves.`;
     }
   }];
 
+  const weaknessInfo = weakness ? `As dificuldades do aluno são: ${weakness}. Foque MAIS nessas matérias.` : '';
+
   const response = await callLovableAI(
     [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Crie um cronograma de estudos com foco em ${focus}.
-Horas disponíveis por dia: ${hoursPerDay}
+      { role: 'user', content: `Crie um cronograma de estudos para os próximos ${daysCount} dias.
+
+INFORMAÇÕES DO ALUNO:
+- Objetivo/Foco: ${focus}
+- Horas disponíveis por dia: ${hoursPerDay}
+${weaknessInfo}
+
 Datas disponíveis: ${dates.join(', ')}
-Distribua tarefas de estudo para cada dia.` }
+
+Crie múltiplas tarefas por dia (blocos de estudo de 45-90 minutos cada) totalizando aproximadamente ${hoursPerDay} horas por dia.
+Priorize as dificuldades do aluno mas mantenha um cronograma equilibrado.` }
     ],
     tools,
     { type: 'function', function: { name: 'create_schedule' } }
@@ -242,7 +257,7 @@ serve(async (req) => {
         result = await generateFlashcards(payload.topic, payload.count || 5);
         break;
       case 'create_study_plan':
-        result = await createStudyPlan(payload.hoursPerDay, payload.focus, payload.daysCount || 7);
+        result = await createStudyPlan(payload.hoursPerDay, payload.focus, payload.weakness || '', payload.daysCount || 7);
         break;
       case 'answer_question':
         result = await answerQuestion(payload.question, payload.context, payload.history);
