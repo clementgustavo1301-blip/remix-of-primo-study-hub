@@ -60,9 +60,10 @@ export interface StudyTask {
 export async function createStudyPlan(
   hoursPerDay: number, 
   focus: string, 
+  weakness: string = "",
   daysCount: number = 7
 ): Promise<AIResponse<StudyTask[]>> {
-  return callAI<StudyTask[]>('create_study_plan', { hoursPerDay, focus, daysCount });
+  return callAI<StudyTask[]>('create_study_plan', { hoursPerDay, focus, weakness, daysCount });
 }
 
 export interface ChatMessage {
