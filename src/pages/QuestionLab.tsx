@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Sparkles, Flame, Loader2, CheckCircle, XCircle, BookmarkPlus } from "lucide-react";
+import { updateStreak } from "@/services/streakService";
+import { Brain, ChevronRight, CheckCircle2, XCircle, AlertCircle, Loader2, Search, Sparkles, Flame, BookmarkPlus } from "lucide-react";
 import Watermark from "@/components/Watermark";
+import { generateAndCacheQuestions } from "@/services/questionService";
 
 const subjects = ["Matemática", "Física", "Química", "Biologia", "História", "Geografia", "Português", "Literatura", "Filosofia", "Sociologia"];
 
@@ -53,27 +55,38 @@ const QuestionLab = () => {
     if (!subject) return toast.error("Selecione uma matéria");
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-question", {
-        body: { subject, topic: topic || undefined, hard }
-      });
-      if (error) throw error;
-      setQuestion(data.question);
-      setFromPool(false);
-      setSelectedAnswer(null);
-      setShowResult(false);
-      // Save to pool
-      await supabase.from("questions_pool").insert({
-        subject, topic: topic || null, difficulty: hard ? "hard" : "medium",
-        content: data.question, origin: "AI", created_by: user?.id
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      const questions = await generateAndCacheQuestions(
+        subject,
+        topic || "",
+        hard ? 'hard' : 'medium',
+        user?.id
+      );
+
+      if (questions && Array.isArray(questions) && questions.length > 0) {
+        setQuestion(questions[0] as unknown as Question);
+        setFromPool(false);
+        setSelectedAnswer(null);
+        setShowResult(false);
+      } else {
+        throw new Error("Formato inválido retornado pela IA");
+      }
     } catch (e) { toast.error("Erro ao gerar questão"); console.error(e); }
     setLoading(false);
   };
 
-  const handleAnswer = (idx: number) => {
+  const handleAnswer = async (idx: number) => {
     if (showResult) return;
     setSelectedAnswer(idx);
     setShowResult(true);
+
+    if (question && idx === question.correctAnswer) {
+      toast.success("Resposta Certa! 🎯");
+      if (user) {
+        await updateStreak(user.id);
+        window.dispatchEvent(new Event("profile_updated"));
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -124,42 +137,41 @@ const QuestionLab = () => {
           <div className="relative z-10 select-none">
             {fromPool && <span className="text-xs bg-secondary/30 text-secondary px-3 py-1 rounded-full">Banco Comunitário</span>}
             <p className="text-lg text-foreground leading-relaxed">{question.question}</p>
-          <div className="space-y-3">
-            {question.options.map((opt, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleAnswer(idx)}
-                disabled={showResult}
-                className={`w-full text-left p-4 rounded-xl transition-all duration-300 ${
-                  showResult
+            <div className="space-y-3">
+              {question.options.map((opt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleAnswer(idx)}
+                  disabled={showResult}
+                  className={`w-full text-left p-4 rounded-xl transition-all duration-300 ${showResult
                     ? idx === question.correctAnswer
                       ? "bg-emerald-500/20 border border-emerald-500/50"
                       : idx === selectedAnswer
-                      ? "bg-rose-500/20 border border-rose-500/50"
-                      : "glass-subtle"
+                        ? "bg-rose-500/20 border border-rose-500/50"
+                        : "glass-subtle"
                     : "glass glass-hover"
-                }`}
-              >
-                <span className="font-medium mr-2">{String.fromCharCode(65 + idx)}.</span>
-                {opt}
-              </button>
-            ))}
-          </div>
-          {showResult && (
-            <div className="space-y-4 fade-in">
-              <div className={`flex items-center gap-2 ${selectedAnswer === question.correctAnswer ? "text-emerald-400" : "text-rose-400"}`}>
-                {selectedAnswer === question.correctAnswer ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
-                <span className="font-medium">{selectedAnswer === question.correctAnswer ? "Parabéns! Você acertou!" : "Resposta incorreta"}</span>
-              </div>
-              <div className="glass-subtle rounded-xl p-4">
-                <p className="text-sm text-muted-foreground mb-1">Explicação:</p>
-                <p className="text-foreground">{question.explanation}</p>
-              </div>
-              <Button onClick={handleSave} className="btn-glass">
-                <BookmarkPlus className="h-4 w-4 mr-2" />Salvar no Meu Caderno
-              </Button>
+                    }`}
+                >
+                  <span className="font-medium mr-2">{String.fromCharCode(65 + idx)}.</span>
+                  {opt}
+                </button>
+              ))}
             </div>
-          )}
+            {showResult && (
+              <div className="space-y-4 fade-in">
+                <div className={`flex items-center gap-2 ${selectedAnswer === question.correctAnswer ? "text-emerald-400" : "text-rose-400"}`}>
+                  {selectedAnswer === question.correctAnswer ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                  <span className="font-medium">{selectedAnswer === question.correctAnswer ? "Parabéns! Você acertou!" : "Resposta incorreta"}</span>
+                </div>
+                <div className="glass-subtle rounded-xl p-4">
+                  <p className="text-sm text-muted-foreground mb-1">Explicação:</p>
+                  <p className="text-foreground">{question.explanation}</p>
+                </div>
+                <Button onClick={handleSave} className="btn-glass">
+                  <BookmarkPlus className="h-4 w-4 mr-2" />Salvar no Meu Caderno
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
