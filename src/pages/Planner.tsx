@@ -130,7 +130,7 @@ const Planner = () => {
     console.log(`Fetching tasks from ${startDate} to ${endDate}...`);
 
     const { data, error } = await supabase
-      .from("tasks")
+      .from("study_tasks")
       .select("*")
       .eq("user_id", user?.id)
       .gte("date", startDate)
@@ -142,7 +142,7 @@ const Planner = () => {
       toast.error("Erro ao carregar tarefas");
     } else {
       console.log("Tasks fetched:", data);
-      setTasks(data || []);
+      setTasks((data || []) as StudyTask[]);
     }
     setLoading(false);
   };
@@ -170,7 +170,7 @@ const Planner = () => {
     const newState = !currentState;
 
     const { error } = await supabase
-      .from("tasks")
+      .from("study_tasks")
       .update({ is_done: newState })
       .eq("id", taskId);
 
@@ -277,13 +277,12 @@ const Planner = () => {
         // 1. Strict Reset: Delete ALL existing tasks/events for this user
         console.log("Resetting planner for user:", user.id);
 
-        await supabase.from("tasks").delete().eq("user_id", user.id);
+        await supabase.from("study_tasks").delete().eq("user_id", user.id);
         await supabase.from("events").delete().eq("user_id", user.id);
 
         // 2. Insert new tasks
         const tasksToInsert = tasksToSave.map((task) => ({
           user_id: user.id,
-          title: task.topic || task.subject,
           subject: task.subject,
           topic: task.topic,
           date: task.date,
@@ -292,7 +291,7 @@ const Planner = () => {
         }));
 
         const { error: insertError } = await supabase
-          .from("tasks")
+          .from("study_tasks")
           .insert(tasksToInsert);
 
         if (insertError) throw insertError;
@@ -509,7 +508,7 @@ const Planner = () => {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <p className={`text-sm font-semibold leading-snug ${task.is_done ? 'line-through opacity-70' : ''}`}>
-                                    {task.title || task.topic || task.subject}
+                                    {task.topic || task.subject}
                                   </p>
                                   {(task.topic || task.subject) && (
                                     <p className={`text-xs opacity-80 mt-1 leading-relaxed ${task.is_done ? 'line-through' : ''}`}>

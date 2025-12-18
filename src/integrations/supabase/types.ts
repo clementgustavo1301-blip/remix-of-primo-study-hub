@@ -116,6 +116,7 @@ export type Database = {
           id: string
           interval: number | null
           next_review: string | null
+          subject: string | null
           user_id: string
         }
         Insert: {
@@ -126,6 +127,7 @@ export type Database = {
           id?: string
           interval?: number | null
           next_review?: string | null
+          subject?: string | null
           user_id: string
         }
         Update: {
@@ -136,6 +138,7 @@ export type Database = {
           id?: string
           interval?: number | null
           next_review?: string | null
+          subject?: string | null
           user_id?: string
         }
         Relationships: []
@@ -189,6 +192,7 @@ export type Database = {
           created_by: string | null
           difficulty: string | null
           id: string
+          is_public: boolean | null
           origin: string | null
           subject: string
           topic: string | null
@@ -199,6 +203,7 @@ export type Database = {
           created_by?: string | null
           difficulty?: string | null
           id?: string
+          is_public?: boolean | null
           origin?: string | null
           subject: string
           topic?: string | null
@@ -209,6 +214,7 @@ export type Database = {
           created_by?: string | null
           difficulty?: string | null
           id?: string
+          is_public?: boolean | null
           origin?: string | null
           subject?: string
           topic?: string | null

@@ -167,7 +167,7 @@ const QuestionLab = () => {
             {showResult && (
               <div className="space-y-4 fade-in">
                 <div className={`flex items-center gap-2 ${selectedAnswer === question.correctAnswer ? "text-emerald-400" : "text-rose-400"}`}>
-                  {selectedAnswer === question.correctAnswer ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                  {selectedAnswer === question.correctAnswer ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
                   <span className="font-medium">{selectedAnswer === question.correctAnswer ? "Parabéns! Você acertou!" : "Resposta incorreta"}</span>
                 </div>
                 <div className="glass-subtle rounded-xl p-4">

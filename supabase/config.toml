@@ -1,1 +1,7 @@
 project_id = "zurkvsgelpiklbdclodo"
+
+[functions.generate-question]
+verify_jwt = false
+
+[functions.ai-service]
+verify_jwt = false
