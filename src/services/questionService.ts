@@ -3,6 +3,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || "");
 
+const CACHE_KEY = "last_generated_question";
+
 export const generateAndCacheQuestions = async (
   subject: string,
   topic: string,
@@ -47,6 +49,7 @@ export const generateAndCacheQuestions = async (
     }
 
     const prompt = `
+      Você é um especialista em vestibular de Medicina (UERN/ENEM).
       Atue como um elaborador sênior do INEP.
       Crie 5 questões de múltipla escolha sobre "${topic}" (${subject}).
       
@@ -77,8 +80,7 @@ export const generateAndCacheQuestions = async (
     try {
       console.log("Inicializando Gemma 3 4b IT...");
       const model = genAI.getGenerativeModel({
-        model: "gemma-3-4b-it",
-        systemInstruction: "Você é um especialista em vestibular de Medicina (UERN/ENEM)."
+        model: "gemma-3-4b-it"
       }, {
         apiVersion: "v1beta"
       });
@@ -105,6 +107,18 @@ export const generateAndCacheQuestions = async (
       else console.log("💾 Salvo no banco com sucesso!");
     }
 
+    // 4. Save to localStorage
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        question: json[0],
+        subject,
+        topic,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.warn("Erro ao salvar no localStorage", e);
+    }
+
     return json;
 
   } catch (error: any) {
@@ -117,4 +131,20 @@ export const generateAndCacheQuestions = async (
 
     throw new Error(`Falha ao gerar questões: ${error.message || "Erro desconhecido"}`);
   }
+};
+
+export const getLastCachedQuestion = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // Return if less than 24 hours old
+      if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn("Erro ao ler cache local", e);
+  }
+  return null;
 };

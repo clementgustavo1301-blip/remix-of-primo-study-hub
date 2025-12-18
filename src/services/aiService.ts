@@ -4,8 +4,7 @@ const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || "");
 
 console.log("Inicializando Gemma 3 4b IT...");
 const model = genAI.getGenerativeModel({
-  model: "gemma-3-4b-it",
-  systemInstruction: "Você é um especialista em vestibular de Medicina (UERN/ENEM)."
+  model: "gemma-3-4b-it"
 }, {
   apiVersion: "v1beta"
 });
@@ -36,10 +35,12 @@ export interface EssayFeedback {
 }
 
 export interface StudyTask {
-  subject: string;
-  topic: string;
-  duration_minutes: number;
+  id: string;
+  title: string;
   date: string;
+  completed: boolean;
+  category: string;
+  duration: number;
 }
 
 export interface ChatMessage {
@@ -79,6 +80,7 @@ const parseJSON = (text: string) => {
 export const generateFlashcards = async (topic: string, count: number = 5): Promise<AIResponse<Flashcard[]>> => {
   try {
     const prompt = `
+      Você é um especialista em vestibular de Medicina (UERN/ENEM).
       Crie ${count} flashcards sobre "${topic}".
       Responda APENAS um JSON Array válido: [{"front": "Pergunta", "back": "Resposta"}]
       Responda estritamente em JSON válido.
@@ -95,7 +97,16 @@ export const generateFlashcards = async (topic: string, count: number = 5): Prom
 
 export const sendMessageToChat = async (message: string, history: ChatMessage[] = []): Promise<string> => {
   try {
-    const prompt = `Você é um tutor de estudos amigável. Responda a: ${message}`;
+    const prompt = `
+      Você é um mentor estratégico para Medicina. Sua base de conhecimento é o ENEM. Seu objetivo é otimizar a nota do aluno focando no que dá mais pontos (Teoria de Resposta ao Item + Pesos da UERN). Personalize o estudo baseado nas dificuldades informadas.
+      
+      PERSONALIDADE NO CHAT:
+      - Responda dúvidas baseadas na Matriz de Referência do ENEM.
+      - Só mencione a UERN quando for falar de Pesos (Ex: 'Foque nisso pois vale peso 3 na sua cota') ou bônus regional.
+      - Não invente que a UERN tem uma prova própria diferente do ENEM.
+      
+      Responda a: ${message}
+    `;
     const result = await model.generateContent(prompt);
     return result.response.text();
   } catch (e) {
@@ -120,6 +131,7 @@ export const answerQuestion = async (
 export const correctEssay = async (text: string, theme: string = "Tema Livre"): Promise<AIResponse<EssayFeedback>> => {
   try {
     const prompt = `
+      Você é um especialista em vestibular de Medicina (UERN/ENEM).
       Atue como um CORRETOR OFICIAL DO ENEM (INEP).
       Sua tarefa é corrigir a redação abaixo com rigor técnico, mas com OLHAR PEDAGÓGICO.
 
@@ -182,62 +194,87 @@ export const createStudyPlan = async (
   difficulties: Record<string, string>, // { 'Natureza': 'Difícil', 'Humanas': 'Fácil', ... }
   daysCount: number = 7
 ): Promise<AIResponse<StudyTask[]>> => {
+  const today = new Date();
+
+  // 1. TENTATIVA COM IA
   try {
-    const todayStr = new Date().toLocaleDateString("pt-BR");
+    const preferences = { focus: `${course} na ${university}` };
 
-    // Format difficulty map for prompt
-    const difficultyStr = Object.entries(difficulties)
-      .map(([area, level]) => `- ${area}: ${level}`)
-      .join("\n");
+    const model = genAI.getGenerativeModel({
+      model: "gemma-3-4b-it",
+    }, { apiVersion: "v1beta" });
 
-    const prompt = `
-      Atue como um ESTRATEGISTA DO ENEM e SISU.
-      Gere um cronograma de ${daysCount} dias começando em ${todayStr}.
-      
-      ALUNO:
-      - Curso Desejado: ${course}
-      - Faculdade: ${university}
-      - Disponibilidade: ${hoursPerDay}h/dia
-      
-      DIFICULDADE POR ÁREA DO CONHECIMENTO:
-      ${difficultyStr}
-
-      REGRAS DE PESOS E PRIORIDADE (ALGORITMO SISU):
-      1. Identifique os pesos do SISU para ${course} na ${university} (ou use padrão da área).
-      2. Crie um SCORE DE PRIORIDADE para cada área: (Peso da Área × Dificuldade do Aluno).
-         - Dificuldade "Difícil" aumenta muito a necessidade de estudo.
-         - Dificuldade "Fácil" sugere apenas revisão.
-      3. Áreas com SCORE MAIOR = Mais tempo (90-120min) e maior frequência.
-      4. Áreas com SCORE MENOR = Revisão rápida (45-60min) e resolução de questões.
-
-      CONTEÚDO:
-      - Utilize APENAS os tópicos que MAIS CAÍRAM no ENEM nos últimos 5 anos.
-      - Distribua as tarefas sequencialmente a partir de ${todayStr}.
-
-      RESPOSTA ESPERADA (JSON PURO, SEM MARKDOWN, SEM BLOCOS DE CÓDIGO):
-      [
-        {
-          "subject": "Matéria (Ex: Física)",
-          "topic": "[Natureza] Nome do Tópico (Ex: Ondulatória)", 
-          "duration_minutes": 90,
-          "date": "YYYY-MM-DD"
-        }
-      ]
-      *Nota: No campo 'topic', coloque a Área entre colchetes no início, ex: [Humanas], [Natureza], [Linguagens], [Matemática], [Redação].
-      Responda estritamente em JSON válido.
-    `;
+    const prompt = `Atue como mentor do ENEM. Crie um plano de estudos de ${daysCount} dias focado em: ${preferences.focus || 'Geral'}.
+    Considere estas dificuldades: ${JSON.stringify(difficulties)}.
+    
+    Retorne APENAS um Array JSON puro neste formato, sem markdown:
+    [
+      { "day_offset": 1, "subject": "Matemática", "topic": "Funções", "duration": 90 },
+      { "day_offset": 2, "subject": "Redação", "topic": "Estrutura", "duration": 60 }
+    ]`;
 
     const result = await model.generateContent(prompt);
-    const data = parseJSON(result.response.text());
+    const text = result.response.text();
+    console.log("AI Response Raw:", text);
 
-    if (!Array.isArray(data)) throw new Error("Formato inválido");
-    return { data, error: null };
-  } catch (e: any) {
-    console.error("Erro na chamada AI (Plan):", e);
-    console.error("Erro detalhado:", e.message);
-    if (e.message?.includes("404")) {
-      console.error("ERRO 404: Verifique se o modelo 'gemini-1.5-flash' está disponível para sua API Key.");
+    // Extração segura do JSON (busca apenas o conteúdo entre [ e ])
+    // Encontra o PRIMEIRO '[' e o ÚLTIMO ']' para ignorar texto extra
+    const firstBracket = text.indexOf('[');
+    const lastBracket = text.lastIndexOf(']');
+
+    let jsonBlock = "[]";
+    if (firstBracket !== -1 && lastBracket !== -1) {
+      jsonBlock = text.substring(firstBracket, lastBracket + 1);
     }
-    return { data: null, error: e.message };
+
+    const data = JSON.parse(jsonBlock);
+
+    if (Array.isArray(data) && data.length > 0) {
+      const tasks = data.map((item: any) => {
+        const taskDate = new Date(today);
+        taskDate.setDate(today.getDate() + (item.day_offset || 1));
+
+        return {
+          id: crypto.randomUUID(),
+          title: `${item.subject} - ${item.topic}`,
+          date: taskDate.toISOString().split('T')[0],
+          completed: false,
+          category: item.subject,
+          duration: item.duration || 60
+        };
+      });
+      return { data: tasks, error: null };
+    }
+  } catch (error) {
+    console.warn("Falha na IA, ativando plano de fallback:", error);
   }
+
+  // 2. PLANO DE EMERGÊNCIA (FALLBACK)
+  // Executa se a IA falhar, garantindo que o usuário sempre receba tarefas
+  console.log("Gerando cronograma local de fallback...");
+  const fallbackPlan = [
+    { sub: "Matemática", topic: "Matemática Básica" },
+    { sub: "Natureza", topic: "Ecologia" },
+    { sub: "Humanas", topic: "História do Brasil" },
+    { sub: "Linguagens", topic: "Interpretação de Texto" },
+    { sub: "Redação", topic: "Estrutura Dissertativa" },
+    { sub: "Natureza", topic: "Química Geral" },
+    { sub: "Matemática", topic: "Estatística" }
+  ];
+
+  const tasks = fallbackPlan.map((item, index) => {
+    const taskDate = new Date(today);
+    taskDate.setDate(today.getDate() + (index + 1)); // Gera para os próximos dias
+
+    return {
+      id: crypto.randomUUID(),
+      title: `${item.sub} - ${item.topic}`,
+      date: taskDate.toISOString().split('T')[0],
+      completed: false,
+      category: item.sub,
+      duration: 60
+    };
+  });
+
+  return { data: tasks, error: null };
 };
