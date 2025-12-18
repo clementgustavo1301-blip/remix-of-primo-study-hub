@@ -4,12 +4,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { format, addDays, isSameDay, startOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { 
-  Sparkles, 
-  Loader2, 
-  CheckCircle2, 
-  Circle, 
-  Calendar, 
+import {
+  Sparkles,
+  Loader2,
+  CheckCircle2,
+  Circle,
+  Calendar,
   Brain,
   Target,
   Clock,
@@ -106,22 +106,31 @@ const Planner = () => {
   const [generating, setGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState("cronograma");
 
+  // Day Details Modal State
+  const [selectedDayTasks, setSelectedDayTasks] = useState<StudyTask[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeDay, setActiveDay] = useState<Date | null>(null);
+
   const today = startOfDay(new Date());
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(today, i));
 
   useEffect(() => {
     if (user) {
+      console.log("Initial fetch for user:", user.id);
       fetchTasks();
       fetchEvents();
     }
   }, [user]);
 
   const fetchTasks = async () => {
-    const startDate = format(today, "yyyy-MM-dd");
-    const endDate = format(addDays(today, 7), "yyyy-MM-dd");
-    
+    // Widen range to handle timezone edge cases
+    const startDate = format(addDays(today, -1), "yyyy-MM-dd");
+    const endDate = format(addDays(today, 8), "yyyy-MM-dd");
+
+    console.log(`Fetching tasks from ${startDate} to ${endDate}...`);
+
     const { data, error } = await supabase
-      .from("study_tasks")
+      .from("tasks")
       .select("*")
       .eq("user_id", user?.id)
       .gte("date", startDate)
@@ -132,6 +141,7 @@ const Planner = () => {
       console.error("Error fetching tasks:", error);
       toast.error("Erro ao carregar tarefas");
     } else {
+      console.log("Tasks fetched:", data);
       setTasks(data || []);
     }
     setLoading(false);
@@ -140,7 +150,7 @@ const Planner = () => {
   const fetchEvents = async () => {
     const startDate = format(today, "yyyy-MM-dd");
     const endDate = format(addDays(today, 30), "yyyy-MM-dd");
-    
+
     const { data, error } = await supabase
       .from("events")
       .select("*")
@@ -158,9 +168,9 @@ const Planner = () => {
 
   const toggleTask = async (taskId: string, currentState: boolean | null) => {
     const newState = !currentState;
-    
+
     const { error } = await supabase
-      .from("study_tasks")
+      .from("tasks")
       .update({ is_done: newState })
       .eq("id", taskId);
 
@@ -197,40 +207,83 @@ const Planner = () => {
     toast.success("Evento excluído");
   };
 
-  const getTasksForDay = (day: Date) => 
-    tasks.filter(t => t.date && isSameDay(new Date(t.date + "T12:00:00"), day));
+  // Helper for Area Colors
+  const getAreaColor = (tag: string) => {
+    if (tag.includes("Natureza")) return "border-l-4 border-l-green-400";
+    if (tag.includes("Humanas")) return "border-l-4 border-l-rose-400";
+    if (tag.includes("Matemática")) return "border-l-4 border-l-yellow-400";
+    if (tag.includes("Linguagens")) return "border-l-4 border-l-blue-400";
+    if (tag.includes("Redação")) return "border-l-4 border-l-purple-400";
+    return "";
+  };
 
-  const getEventsForDay = (day: Date) => 
+  // Debug check
+  const debugLog = (msg: string, data: any) => {
+    // console.log(`[DEBUG] ${msg}`, data); 
+  };
+
+  const getTasksForDay = (day: Date) => {
+    // Robust comparison: Slice first 10 chars (YYYY-MM-DD) to ignore time/timezone shifts
+    const targetDate = format(day, "yyyy-MM-dd");
+
+    return tasks.filter(t => {
+      if (!t.date) return false;
+      const taskDate = t.date.substring(0, 10); // Handle both "2024-12-18" and "2024-12-18T10:00:00"
+      return taskDate === targetDate;
+    });
+  };
+
+  const getEventsForDay = (day: Date) =>
     events.filter(e => isSameDay(parseISO(e.start_time), day));
 
   const completedTasks = tasks.filter(t => t.is_done).length;
   const totalTasks = tasks.length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  const handleGeneratePlan = async (hours: number, focus: string, weakness: string) => {
+  // Render Loop Check
+  // console.log("Tasks in Component:", tasks); 
+
+  const handleDayClick = (day: Date) => {
+    const dayTasks = getTasksForDay(day);
+    setSelectedDayTasks(dayTasks);
+    setActiveDay(day);
+    setIsModalOpen(true);
+  };
+
+  const handleGeneratePlan = async (hours: number, university: string, course: string, weaknesses: string[]) => {
     if (!user) return;
-    
+
     setGenerating(true);
     setShowWizard(false);
-    
+
     try {
-      const result = await createStudyPlan(hours, focus, weakness, 7);
-      
+      // API now returns { summary: string, tasks: StudyTask[] }
+      const result = await createStudyPlan(hours, university, course, weaknesses, 7);
+
       if (result.error) {
         toast.error(result.error);
         return;
       }
 
-      if (result.data && result.data.length > 0) {
-        await supabase
-          .from("study_tasks")
-          .delete()
-          .eq("user_id", user.id)
-          .gte("date", format(today, "yyyy-MM-dd"))
-          .lte("date", format(addDays(today, 7), "yyyy-MM-dd"));
+      if (result.data) {
+        // Safe access with fallback
+        const tasksToSave = result.data.tasks || [];
 
-        const tasksToInsert = result.data.map((task) => ({
+        if (!Array.isArray(tasksToSave) || tasksToSave.length === 0) {
+          toast.error("A IA não gerou tarefas válidas. Tente novamente.");
+          return;
+        }
+
+        // 1. Strict Reset: Delete ALL existing tasks/events for this user
+        console.log("Resetting planner for user:", user.id);
+
+        await supabase.from("tasks").delete().eq("user_id", user.id);
+        await supabase.from("events").delete().eq("user_id", user.id);
+
+        // 2. Insert new tasks
+        const tasksToInsert = tasksToSave.map((task) => ({
           user_id: user.id,
+          title: task.topic || task.subject,
           subject: task.subject,
           topic: task.topic,
           date: task.date,
@@ -239,13 +292,28 @@ const Planner = () => {
         }));
 
         const { error: insertError } = await supabase
-          .from("study_tasks")
+          .from("tasks")
           .insert(tasksToInsert);
 
         if (insertError) throw insertError;
 
+        // 3. Refresh UI immediately
         await fetchTasks();
-        toast.success("Cronograma gerado com sucesso! 🚀");
+        await fetchEvents();
+
+        // Show Strategy Summary!
+        toast.success("Estratégia SISU Gerada! 🚀");
+        if (result.data.summary) {
+          toast(result.data.summary, {
+            duration: 8000,
+            icon: '🧠',
+            style: {
+              background: '#1e1e2e',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }
+          });
+        }
       }
     } catch (error) {
       console.error("Error generating plan:", error);
@@ -259,7 +327,7 @@ const Planner = () => {
     if (!user) return;
 
     const startTime = `${eventData.date}T${eventData.time}:00`;
-    
+
     const { error } = await supabase
       .from("events")
       .insert({
@@ -299,6 +367,8 @@ const Planner = () => {
     );
   }
 
+  console.log("Tarefas no Estado:", tasks);
+
   return (
     <div className="space-y-6 slide-up">
       {/* Header */}
@@ -312,14 +382,14 @@ const Planner = () => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="glass w-full sm:w-auto grid grid-cols-2 gap-1 p-1">
-          <TabsTrigger 
-            value="cronograma" 
+          <TabsTrigger
+            value="cronograma"
             className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary"
           >
             <Brain className="h-4 w-4 mr-2" />
             Cronograma IA
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="agenda"
             className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary"
           >
@@ -367,7 +437,7 @@ const Planner = () => {
               </div>
               <h2 className="text-xl font-semibold text-foreground mb-2">Nenhum cronograma ativo</h2>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Deixe a IA criar um plano de estudos personalizado para sua semana. 
+                Deixe a IA criar um plano de estudos personalizado para sua semana.
                 Basta informar sua disponibilidade e objetivos.
               </p>
               {profile?.is_pro ? (
@@ -388,18 +458,21 @@ const Planner = () => {
 
           {/* Weekly Kanban View */}
           {tasks.length > 0 && (
-            <div className="overflow-x-auto pb-4 -mx-4 px-4">
-              <div className="flex gap-3 min-w-max lg:min-w-0 lg:grid lg:grid-cols-7">
+            <div className="pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {weekDays.map((day) => {
                   const dayTasks = getTasksForDay(day);
                   const isToday = isSameDay(day, today);
-                  
+
                   return (
-                    <div 
-                      key={day.toISOString()} 
-                      className={`flex-shrink-0 w-[200px] lg:w-auto ${isToday ? 'lg:min-w-[180px]' : ''}`}
+                    <div
+                      key={day.toISOString()}
+                      className="flex-shrink-0"
                     >
-                      <div className={`glass rounded-2xl p-3 h-full min-h-[300px] ${isToday ? 'ring-2 ring-primary/50' : ''}`}>
+                      <div
+                        onClick={() => handleDayClick(day)}
+                        className={`glass rounded-2xl p-4 h-full min-h-[280px] cursor-pointer transition-all hover:bg-white/5 hover:scale-[1.02] hover:shadow-xl border border-white/5 ${isToday ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
+                      >
                         <div className={`text-center mb-3 pb-2 border-b border-white/10 ${isToday ? 'border-primary/30' : ''}`}>
                           <p className={`text-xs uppercase tracking-wide ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
                             {format(day, "EEE", { locale: ptBR })}
@@ -414,21 +487,19 @@ const Planner = () => {
                           )}
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 pointer-events-none">
                           {dayTasks.length === 0 && (
                             <p className="text-xs text-muted-foreground text-center py-4 opacity-50">
                               Sem tarefas
                             </p>
                           )}
                           {dayTasks.map((task) => (
-                            <button
+                            <div
                               key={task.id}
-                              onClick={() => toggleTask(task.id, task.is_done)}
-                              className={`w-full text-left p-3 rounded-xl border transition-all ${
-                                task.is_done 
-                                  ? 'bg-white/5 border-white/10 opacity-60' 
-                                  : `${getSubjectColor(task.subject)} hover:scale-[1.02]`
-                              }`}
+                              className={`w-full text-left p-3 rounded-xl border transition-all ${task.is_done
+                                ? 'bg-white/5 border-white/10 opacity-60'
+                                : `${getSubjectColor(task.subject)}`
+                                }`}
                             >
                               <div className="flex items-start gap-2">
                                 {task.is_done ? (
@@ -437,12 +508,12 @@ const Planner = () => {
                                   <Circle className="h-4 w-4 flex-shrink-0 mt-0.5 opacity-60" />
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <p className={`text-xs font-semibold truncate ${task.is_done ? 'line-through' : ''}`}>
-                                    {task.subject}
+                                  <p className={`text-sm font-semibold leading-snug ${task.is_done ? 'line-through opacity-70' : ''}`}>
+                                    {task.title || task.topic || task.subject}
                                   </p>
-                                  {task.topic && (
-                                    <p className={`text-[10px] opacity-80 line-clamp-2 mt-0.5 ${task.is_done ? 'line-through' : ''}`}>
-                                      {task.topic}
+                                  {(task.topic || task.subject) && (
+                                    <p className={`text-xs opacity-80 mt-1 leading-relaxed ${task.is_done ? 'line-through' : ''}`}>
+                                      {task.subject}
                                     </p>
                                   )}
                                   {task.duration_minutes && (
@@ -453,7 +524,7 @@ const Planner = () => {
                                   )}
                                 </div>
                               </div>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -499,10 +570,10 @@ const Planner = () => {
                 {weekDays.map((day) => {
                   const dayEvents = getEventsForDay(day);
                   const isToday = isSameDay(day, today);
-                  
+
                   return (
-                    <div 
-                      key={day.toISOString()} 
+                    <div
+                      key={day.toISOString()}
                       className={`flex-shrink-0 w-[200px] lg:w-auto ${isToday ? 'lg:min-w-[180px]' : ''}`}
                     >
                       <div className={`glass rounded-2xl p-3 h-full min-h-[300px] ${isToday ? 'ring-2 ring-primary/50' : ''}`}>
@@ -586,7 +657,7 @@ const Planner = () => {
               </h3>
               <div className="space-y-3">
                 {events.slice(0, 5).map((event) => (
-                  <div 
+                  <div
                     key={event.id}
                     className={`flex items-center gap-4 p-3 rounded-xl border ${getEventColor(event.type)}`}
                   >
@@ -621,10 +692,10 @@ const Planner = () => {
       </Tabs>
 
       {/* Wizard Modal */}
-      <WizardModal 
-        open={showWizard} 
-        onOpenChange={setShowWizard} 
-        onGenerate={handleGeneratePlan} 
+      <WizardModal
+        open={showWizard}
+        onOpenChange={setShowWizard}
+        onGenerate={handleGeneratePlan}
       />
 
       {/* Add Event Modal */}
@@ -640,14 +711,22 @@ const Planner = () => {
 interface WizardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGenerate: (hours: number, focus: string, weakness: string) => void;
+  onGenerate: (hours: number, university: string, course: string, weaknesses: string[]) => void;
 }
 
 const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
   const [step, setStep] = useState(1);
   const [hours, setHours] = useState(4);
-  const [focus, setFocus] = useState("");
-  const [weakness, setWeakness] = useState("");
+  const [university, setUniversity] = useState("");
+  const [course, setCourse] = useState("");
+  const [weaknesses, setWeaknesses] = useState<string[]>([]);
+  const [customWeakness, setCustomWeakness] = useState("");
+
+  const commonSubjects = [
+    "Matemática", "Física", "Química", "Biologia",
+    "História", "Geografia", "Português", "Redação",
+    "Filosofia", "Sociologia", "Inglês"
+  ];
 
   const handleNext = () => {
     if (step < 3) setStep(step + 1);
@@ -657,21 +736,51 @@ const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
     if (step > 1) setStep(step - 1);
   };
 
+  const toggleWeakness = (subject: string) => {
+    setWeaknesses(prev =>
+      prev.includes(subject)
+        ? prev.filter(s => s !== subject)
+        : [...prev, subject]
+    );
+  };
+
+  const addCustomWeakness = () => {
+    if (customWeakness.trim() && !weaknesses.includes(customWeakness.trim())) {
+      setWeaknesses([...weaknesses, customWeakness.trim()]);
+      setCustomWeakness("");
+    }
+  };
+
   const handleSubmit = () => {
-    if (!focus.trim()) {
-      toast.error("Informe seu foco principal");
+    if (!course.trim() || !university.trim()) {
+      toast.error("Preencha o curso e a faculdade");
       return;
     }
-    onGenerate(hours, focus, weakness);
+    // Simple persistence for UX
+    localStorage.setItem("user_SISU_university", university);
+    localStorage.setItem("user_SISU_course", course);
+
+    onGenerate(hours, university, course, weaknesses);
     setStep(1);
     setHours(4);
-    setFocus("");
-    setWeakness("");
+    // Keep university/course filled? User requested persistence.
+    // We will reset them here but next open could read them.
+    // For now, let's reset to keep it clean, but initial state should load from storage.
+    setWeaknesses([]);
   };
+
+  useEffect(() => {
+    // Load persisted data on mount
+    const savedUni = localStorage.getItem("user_SISU_university");
+    const savedCourse = localStorage.getItem("user_SISU_course");
+    if (savedUni) setUniversity(savedUni);
+    if (savedCourse) setCourse(savedCourse);
+  }, [open]);
+
 
   const canProceed = () => {
     if (step === 1) return true;
-    if (step === 2) return focus.trim().length > 0;
+    if (step === 2) return university.trim().length > 0 && course.trim().length > 0;
     return true;
   };
 
@@ -690,11 +799,10 @@ const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
 
         <div className="flex justify-center gap-2 py-2">
           {[1, 2, 3].map((s) => (
-            <div 
-              key={s} 
-              className={`w-2 h-2 rounded-full transition-all ${
-                s === step ? 'bg-primary w-6' : s < step ? 'bg-primary/50' : 'bg-white/20'
-              }`} 
+            <div
+              key={s}
+              className={`w-2 h-2 rounded-full transition-all ${s === step ? 'bg-primary w-6' : s < step ? 'bg-primary/50' : 'bg-white/20'
+                }`}
             />
           ))}
         </div>
@@ -711,7 +819,7 @@ const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
                   Quantas horas você pode estudar por dia?
                 </p>
               </div>
-              
+
               <div className="space-y-4 px-4">
                 <div className="text-center">
                   <span className="text-4xl font-bold text-primary">{hours}</span>
@@ -741,17 +849,29 @@ const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Foco Principal</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Qual é seu objetivo ou curso desejado?
+                  Qual é seu objetivo no SISU?
                 </p>
               </div>
-              
-              <div className="px-4">
-                <Input
-                  value={focus}
-                  onChange={(e) => setFocus(e.target.value)}
-                  placeholder="Ex: Medicina na USP, Direito na FGV..."
-                  className="input-glass text-center"
-                />
+
+              <div className="px-4 space-y-4">
+                <div className="space-y-2">
+                  <Label>Curso Desejado</Label>
+                  <Input
+                    value={course}
+                    onChange={(e) => setCourse(e.target.value)}
+                    placeholder="Ex: Medicina, Direito, Engenharia..."
+                    className="input-glass"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Faculdade / Universidade</Label>
+                  <Input
+                    value={university}
+                    onChange={(e) => setUniversity(e.target.value)}
+                    placeholder="Ex: USP, UFRJ, UFMG..."
+                    className="input-glass"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -762,21 +882,42 @@ const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
                 <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-500/20 flex items-center justify-center">
                   <AlertTriangle className="h-8 w-8 text-amber-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">Pontos Fracos</h3>
+                <h3 className="text-lg font-semibold text-foreground">Dificuldades Específicas</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Quais matérias você tem mais dificuldade?
+                  Quais matérias ou assuntos te dão mais trabalho?
                 </p>
               </div>
-              
-              <div className="px-4">
-                <Input
-                  value={weakness}
-                  onChange={(e) => setWeakness(e.target.value)}
-                  placeholder="Ex: Física, Matemática, Redação..."
-                  className="input-glass text-center"
-                />
+
+              <div className="px-2">
+                <div className="flex flex-wrap gap-2 justify-center mb-4">
+                  {commonSubjects.map((subject) => (
+                    <button
+                      key={subject}
+                      onClick={() => toggleWeakness(subject)}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${weaknesses.includes(subject)
+                        ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                        : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"
+                        }`}
+                    >
+                      {subject}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    value={customWeakness}
+                    onChange={(e) => setCustomWeakness(e.target.value)}
+                    placeholder="Ex: Logaritmos, Eletrodinâmica..."
+                    className="input-glass h-8 text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomWeakness()}
+                  />
+                  <Button size="sm" variant="ghost" onClick={addCustomWeakness} className="h-8">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground text-center mt-2">
-                  (Opcional) A IA focará mais nestas áreas
+                  A IA vai cruzar isso com os Pesos do SISU.
                 </p>
               </div>
             </div>
@@ -790,10 +931,10 @@ const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
               Voltar
             </Button>
           )}
-          
+
           {step < 3 ? (
-            <Button 
-              onClick={handleNext} 
+            <Button
+              onClick={handleNext}
               disabled={!canProceed()}
               className="flex-1 btn-primary"
             >
@@ -801,7 +942,7 @@ const WizardModal = ({ open, onOpenChange, onGenerate }: WizardModalProps) => {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button 
+            <Button
               onClick={handleSubmit}
               className="flex-1 btn-primary"
             >

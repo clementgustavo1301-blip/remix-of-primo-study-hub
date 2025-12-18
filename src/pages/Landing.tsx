@@ -12,7 +12,10 @@ import {
   MessageSquare,
   BookOpen,
   Menu,
-  X
+  X,
+  Headphones,
+  Heart,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -340,6 +343,120 @@ const Landing = () => {
               </div>
             </motion.div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Humanized Support Section - NEW */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+        <div className="max-w-7xl mx-auto">
+          <div className="glass-strong rounded-3xl p-8 sm:p-12 relative overflow-hidden border border-primary/20">
+            {/* Background Decor */}
+            <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-secondary/20 rounded-full blur-3xl" />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+              <motion.div 
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={stagger}
+              >
+                <motion.div variants={fadeUp} className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/10 to-rose-500/10 border border-pink-500/20 rounded-full px-4 py-2 mb-6">
+                  <Heart className="h-4 w-4 text-pink-500" />
+                  <span className="text-sm text-pink-500 font-medium">Cuidado Real</span>
+                </motion.div>
+                
+                <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-foreground mb-6">
+                  Suporte Humanizado
+                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500">
+                    Disponível 24h
+                  </span>
+                </motion.h2>
+
+                <motion.p variants={fadeUp} className="text-lg text-muted-foreground mb-8">
+                  Sabemos que a IA é incrível, mas às vezes você precisa de um toque humano. 
+                  Nossa equipe de monitores especialistas está pronta para te acolher e tirar 
+                  suas dúvidas a qualquer hora do dia ou da noite.
+                </motion.p>
+
+                <motion.div variants={fadeUp} className="space-y-4">
+                  {[
+                    { icon: Headphones, text: "Atendimento em tempo real via chat" },
+                    { icon: Users, text: "Monitores especialistas em cada matéria" },
+                    { icon: Heart, text: "Acolhimento emocional e pedagógico" }
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-background/50 flex items-center justify-center">
+                        <item.icon className="h-5 w-5 text-pink-500" />
+                      </div>
+                      <span className="text-foreground font-medium">{item.text}</span>
+                    </div>
+                  ))}
+                </motion.div>
+
+                <motion.div variants={fadeUp} className="mt-8">
+                  <Link to="/auth">
+                    <Button className="bg-gradient-to-r from-pink-500 to-rose-500 hover:opacity-90 text-white rounded-xl px-8 py-6 text-lg font-semibold shadow-lg shadow-pink-500/20">
+                      Falar com um Monitor
+                    </Button>
+                  </Link>
+                </motion.div>
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="relative"
+              >
+                 {/* Decorative elements representing connection */}
+                 <div className="relative z-10 grid grid-cols-2 gap-4">
+                    <div className="space-y-4 mt-8">
+                      <div className="glass p-4 rounded-2xl animate-float">
+                        <div className="flex items-center gap-3 mb-2">
+                           <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                             <Users className="h-4 w-4 text-green-500" />
+                           </div>
+                           <span className="text-xs font-semibold">Monitor João</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">"Claro! Vamos resolver essa questão de Logaritmo juntos."</p>
+                      </div>
+                      <div className="glass p-4 rounded-2xl animate-float" style={{ animationDelay: "1.5s" }}>
+                         <div className="flex items-center gap-3 mb-2">
+                           <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                             <Users className="h-4 w-4 text-blue-500" />
+                           </div>
+                           <span className="text-xs font-semibold">Monitora Ana</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">"Não desanima! Faltam só 2 semanas."</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                       <div className="glass p-4 rounded-2xl animate-float" style={{ animationDelay: "0.5s" }}>
+                         <div className="flex items-center gap-3 mb-2">
+                           <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                             <Users className="h-4 w-4 text-purple-500" />
+                           </div>
+                           <span className="text-xs font-semibold">Monitor Pedro</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">"Sua redação evoluiu muito! Parabéns!"</p>
+                      </div>
+                       <div className="glass p-4 rounded-2xl animate-float" style={{ animationDelay: "2s" }}>
+                         <div className="flex items-center gap-3 mb-2">
+                           <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center">
+                             <Users className="h-4 w-4 text-orange-500" />
+                           </div>
+                           <span className="text-xs font-semibold">Suporte Téc.</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">"Resolvido! Pode acessar normalmente."</p>
+                      </div>
+                    </div>
+                 </div>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </section>
 

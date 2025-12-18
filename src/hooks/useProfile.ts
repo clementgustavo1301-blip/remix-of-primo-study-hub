@@ -72,6 +72,14 @@ export function useProfile() {
 
   useEffect(() => {
     fetchProfile();
+
+    const handleUpdate = () => {
+      console.log("Profile update event received");
+      fetchProfile();
+    };
+
+    window.addEventListener("profile_updated", handleUpdate);
+    return () => window.removeEventListener("profile_updated", handleUpdate);
   }, [user]);
 
   return { profile, loading, updateProfile, refetch: fetchProfile, addXP };
