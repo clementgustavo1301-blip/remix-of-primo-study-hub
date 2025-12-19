@@ -20,7 +20,7 @@ const benefits = [
 const PremiumGuard = ({ children, featureName = "esta funcionalidade" }: PremiumGuardProps) => {
   const { profile, updateProfile } = useProfile();
   const [showModal, setShowModal] = useState(false);
-  const isPro = profile?.is_pro === true;
+  const isPro = true; // profile?.is_pro === true; // BYPASS FOR TESTING
 
   const handleUpgrade = async () => {
     // Simulating upgrade - in production, this would integrate with Stripe
@@ -80,8 +80,8 @@ const PremiumGuard = ({ children, featureName = "esta funcionalidade" }: Premium
 
           <div className="space-y-3 my-4">
             {benefits.map((benefit, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="flex items-center gap-3 p-3 rounded-xl bg-white/5"
               >
                 <CheckCircle className="h-5 w-5 text-primary flex-shrink-0" />
@@ -93,7 +93,7 @@ const PremiumGuard = ({ children, featureName = "esta funcionalidade" }: Premium
           </div>
 
           <div className="space-y-3">
-            <Button 
+            <Button
               onClick={handleUpgrade}
               className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-6 rounded-2xl text-lg"
             >

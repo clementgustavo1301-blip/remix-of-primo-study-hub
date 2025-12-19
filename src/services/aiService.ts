@@ -2,15 +2,80 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || "");
 
-console.log("Inicializando Gemini 1.5 Flash...");
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// --- Model Strategy ---
+const primaryModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
+const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-002" });
 
-const parseJSON = (text: string) => {
+const generateWithFallback = async (prompt: string) => {
   try {
-    return JSON.parse(text.replace(/```json|```/g, "").trim());
+    console.log("Tentando Gemma-3-27b-it...");
+    const result = await primaryModel.generateContent(prompt);
+    console.log("✅ Gemma Success");
+    return result;
   } catch (e) {
-    console.error("Failed to parse JSON:", e);
-    return null;
+    console.warn("⚠️ Fallback para Gemini 1.5 Flash 002", e);
+    const result = await fallbackModel.generateContent(prompt);
+    console.log("✅ Fallback Success");
+    return result;
+  }
+};
+
+const EXEMPLOS_REFERENCIA = `
+EXEMPLO 1 (Arthur Sanches - Cuidado Invisível):
+"Conforme estudos demográficos realizados pelo Instituto Brasileiro de Geografia e Estatística (IBGE)... [IA: Note o uso de Zygmunt Bauman e Djamila Ribeiro]. Intervenção: Ministério da Cidadania propagar dados."
+
+EXEMPLO 2 (Sabrina Shimizu - Herança Africana):
+"O livro “Nós matamos o cão tinhoso” de Luís Bernardo Honwana retrata a sociedade moçambicana... [IA: Note a estrutura cíclica e citações de Krenak e Chauí]. Intervenção: Parceria ME e MEC para eventos culturais."
+
+EXEMPLO 3 (Gabriel Borges - Registro Civil):
+"Norberto Bobbio, cientista político italiano, afirma que a democracia... [IA: Note a citação de Vidas Secas e Marx]. Intervenção: Mutirão 'Meu Registro, Minha Identidade'."
+`;
+
+const CRITERIOS_ENEM = `
+# PERSONA
+Você é um Corretor Especialista do ENEM. Sua correção é técnica, mas justa.
+Você DEVE atribuir nota 1000 se o texto for excelente, mesmo com 1 ou 2 desvios gramaticais irrelevantes (tolerância oficial).
+
+# COMPETÊNCIAS (0-200 pontos):
+1.  **Norma Culta:** Aceite até 2 desvios leves (vírgula, crase) para nota 200, desde que o texto seja fluido e complexo.
+2.  **Tema/Repertório:** OBRIGATÓRIO repertório legitimado (Livros, Filósofos, Leis). Se usar bem, nota 200.
+3.  **Argumentação:** Defesa consistente da tese.
+4.  **Coesão:** Uso variado de conectivos (Nesse contexto, Outrossim).
+5.  **Intervenção:** SE TIVER OS 5 ELEMENTOS (Agente, Ação, Meio, Efeito, Detalhamento), A NOTA É 200. Não penalize subjetivamente.
+
+# REGRAS MATEMÁTICAS:
+- Nota final DEVE ser múltiplo de 20 (ex: 880, 920, 960, 1000).
+- NUNCA use números quebrados (ex: 925).
+
+# SAÍDA JSON:
+{
+  "score": number,
+  "feedback": "Texto corrido motivador.",
+  "melhorias": ["Dica 1", "Dica 2"],
+  "competencias": { "c1": number, "c2": number, "c3": number, "c4": number, "c5": number }
+}
+`;
+
+// Função auxiliar para limpar Markdown e extrair apenas o objeto JSON
+const cleanAndParseJSON = (text: string) => {
+  try {
+    // 1. Remove marcadores de código Markdown (```json e ```)
+    let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
+
+    // 2. Encontra o primeiro '{' e o último '}'
+    const firstOpen = cleaned.indexOf('{');
+    const lastClose = cleaned.lastIndexOf('}');
+
+    // 3. Se encontrar, corta apenas o conteúdo relevante
+    if (firstOpen !== -1 && lastClose !== -1) {
+      cleaned = cleaned.substring(firstOpen, lastClose + 1);
+    }
+
+    // 4. Tenta fazer o parse
+    return JSON.parse(cleaned);
+  } catch (error) {
+    console.error("Falha ao limpar/parsear JSON:", error);
+    throw new Error("Resposta inválida da IA: Não foi possível extrair o JSON.");
   }
 };
 
@@ -67,8 +132,8 @@ export const generateFlashcards = async (topic: string, count: number = 5): Prom
       Crie ${count} flashcards sobre "${topic}".
       Responda APENAS um JSON Array válido: [{"front": "Pergunta", "back": "Resposta"}]
     `;
-    const result = await model.generateContent(prompt);
-    const data = parseJSON(result.response.text());
+    const result = await generateWithFallback(prompt);
+    const data = cleanAndParseJSON(result.response.text());
 
     if (!Array.isArray(data)) throw new Error("Formato inválido");
 
@@ -81,7 +146,7 @@ export const generateFlashcards = async (topic: string, count: number = 5): Prom
 export const sendMessageToChat = async (message: string, history: ChatMessage[] = []): Promise<string> => {
   try {
     const prompt = `Você é um tutor de estudos amigável. Responda a: ${message}`;
-    const result = await model.generateContent(prompt);
+    const result = await generateWithFallback(prompt);
     return result.response.text();
   } catch (e) {
     console.error("Chat error", e);
@@ -105,48 +170,54 @@ export const answerQuestion = async (
 export const correctEssay = async (text: string, theme: string = "Tema Livre"): Promise<AIResponse<EssayFeedback>> => {
   try {
     const prompt = `
-      Atue como um CORRETOR OFICIAL DO ENEM (INEP).
-      Sua tarefa é corrigir a redação abaixo com rigor técnico, mas com OLHAR PEDAGÓGICO.
-
-      TEMA DA REDAÇÃO: "${theme}"
-      TEXTO DO ALUNO: "${text}"
-
-      DIRETRIZES DE CORREÇÃO:
+      ${EXEMPLOS_REFERENCIA}
       ${CRITERIOS_ENEM}
-
-      USE ESTES EXEMPLOS COMO REFERÊNCIA DE QUALIDADE (NOTA 1000):
-      ${EXEMPLOS_NOTA_1000}
-
-      ATENÇÃO AOS NÍVEIS DE EXCELÊNCIA (BENEVOLÊNCIA TÉCNICA):
-      - Se a redação apresentar estrutura sólida, repertório produtivo e proposta completa, NÃO tenha medo de atribuir nota 200 nas competências.
-      - Seja flexível com o estilo de escrita. Foca na clareza e na defesa do ponto de vista, não apenas em regras mecânicas.
-      - Reconheça o uso de conectivos sofisticados e repertório sociocultural pertinente como diferenciais para a nota máxima.
-
-      ANÁLISE OBRIGATÓRIA:
-      1. Identifique se há Repertório Sociocultural (livros, filósofos) e se é produtivo.
-      2. Verifique se a Proposta de Intervenção tem os 5 elementos (Agente, Ação, Meio, Efeito, Detalhamento).
-      3. Analise o uso de conectivos (Coesão).
-
-      RETORNE APENAS JSON NESTE FORMATO (SEM MARKDOWN/SEM BLOCOS DE CÓDIGO):
-      {
-        "score": number, // Nota total de 0 a 1000 (soma das competencias)
-        "competencias": {
-          "c1": number, // 0-200
-          "c2": number, // 0-200
-          "c3": number, // 0-200
-          "c4": number, // 0-200
-          "c5": number // 0-200
-        },
-        "feedback": "Texto corrido, em tom educacional e encorajador, explicando os erros e acertos.",
-        "melhorias": ["Sugestão prática 1", "Sugestão prática 2 (ex: usar mais conectivos)", "Sugestão 3 (ex: citar um autor)"]
-      }
+      
+      Agora, aja como o corretor oficial e avalie esta redação:
+      TEMA: ${theme}
+      TEXTO DO ALUNO: "${text}"
     `;
 
-    // Uso do modelo global padronizado (gemini-1.5-flash)
-    const result = await model.generateContent(prompt);
-    const data = parseJSON(result.response.text());
+    // Uso do modelo com fallback
+    const result = await generateWithFallback(prompt);
+    const rawData = cleanAndParseJSON(result.response.text());
 
-    if (!data || typeof data.score !== 'number') throw new Error("Resposta inválida da IA");
+    if (!rawData || typeof rawData.score !== 'number') {
+      throw new Error("Resposta inválida da IA");
+    }
+
+    // --- CORREÇÃO DO BUG 220 ---
+    const clamp = (num: number) => Math.min(Math.max(num, 0), 200);
+
+    // Normaliza cada competência
+    rawData.competencias.c1 = clamp(rawData.competencias.c1);
+    rawData.competencias.c2 = clamp(rawData.competencias.c2);
+    rawData.competencias.c3 = clamp(rawData.competencias.c3);
+    rawData.competencias.c4 = clamp(rawData.competencias.c4);
+    rawData.competencias.c5 = clamp(rawData.competencias.c5);
+
+    // Recalcula o total para garantir soma correta
+    rawData.score =
+      rawData.competencias.c1 +
+      rawData.competencias.c2 +
+      rawData.competencias.c3 +
+      rawData.competencias.c4 +
+      rawData.competencias.c5;
+    // --- FIM DA CORREÇÃO ---
+
+    // Map new JSON format to EssayFeedback interface
+    const data: EssayFeedback = {
+      score: rawData.score,
+      competencias: {
+        c1: rawData.competencias.c1,
+        c2: rawData.competencias.c2,
+        c3: rawData.competencias.c3,
+        c4: rawData.competencias.c4,
+        c5: rawData.competencias.c5,
+      },
+      feedback: rawData.feedback,
+      melhorias: rawData.melhorias || []
+    };
 
     return { data, error: null };
   } catch (e: any) {
@@ -210,8 +281,8 @@ export const createStudyPlan = async (
       *Nota: No campo 'topic', coloque a Área entre colchetes no início, ex: [Humanas], [Natureza], [Linguagens], [Matemática], [Redação].
     `;
 
-    const result = await model.generateContent(prompt);
-    const data = parseJSON(result.response.text());
+    const result = await generateWithFallback(prompt);
+    const data = cleanAndParseJSON(result.response.text());
 
     if (!Array.isArray(data)) throw new Error("Formato inválido");
     return { data, error: null };

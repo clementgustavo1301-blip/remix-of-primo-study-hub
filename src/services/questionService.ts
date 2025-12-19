@@ -32,8 +32,25 @@ export const generateAndCacheQuestions = async (
 
   // 2. Gera com IA
   try {
-    console.log("Inicializando Gemini 1.5 Flash...");
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    try {
+      console.log("Tentando listar modelos...");
+      // @ts-ignore
+      if (typeof genAI.listModels === 'function') {
+        // @ts-ignore
+        const models = await genAI.listModels();
+        console.log("Modelos disponíveis:", models);
+      }
+    } catch (e) {
+      console.error("Erro ao listar", e);
+    }
+
+    // --- Model Selection Strategy ---
+    console.log("Inicializando estratégia de modelos...");
+
+    // Configuração dos modelos
+    const primaryModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
+    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-002" });
+
     // Define instruções extras baseadas na dificuldade escolhida
     let instrucaoNivel = "";
 
@@ -76,7 +93,16 @@ export const generateAndCacheQuestions = async (
       ]
     `;
 
-    const result = await model.generateContent(prompt);
+    let result;
+    try {
+      console.log("Tentando gerar com Gemma-3-27b-it...");
+      result = await primaryModel.generateContent(prompt);
+      console.log("✅ Sucesso com Gemma!");
+    } catch (gemmaError) {
+      console.warn("⚠️ Gemma falhou, tentando fallback para Gemini 1.5 Flash 002...", gemmaError);
+      result = await fallbackModel.generateContent(prompt);
+      console.log("✅ Sucesso com Fallback (Gemini Flash)!");
+    }
     const text = result.response.text().replace(/```json|```/g, "").trim();
     const json = JSON.parse(text);
 

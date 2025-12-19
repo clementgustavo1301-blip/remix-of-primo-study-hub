@@ -53,7 +53,14 @@ const Essay = () => {
     setFeedback(null);
 
     try {
-      const result = await correctEssay(content, theme || undefined);
+      // NORMALIZADOR PADRÃO ENEM:
+      // Transforma: "Parágrafo 1...\n\nParágrafo 2..." (Com linha vazia)
+      // Em: "Parágrafo 1...\nParágrafo 2..." (Sem linha vazia, apenas quebra)
+      const textStandardized = content
+        .replace(/(\r\n|\n|\r){2,}/gm, "\n") // Remove buracos vazios
+        .trim();
+
+      const result = await correctEssay(textStandardized, theme || undefined);
 
       if (result.error) {
         toast.error(result.error);
@@ -124,8 +131,8 @@ const Essay = () => {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 w-full">
-          {/* Esquerda: Editor e Histórico */}
+        <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+          {/* Editor e Histórico */}
           <div className="space-y-6">
             {/* Editor */}
             <div className="glass rounded-3xl p-6 space-y-4">
@@ -141,21 +148,28 @@ const Essay = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm font-medium text-foreground">
                   Sua Redação
                 </label>
-                <Textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Cole ou escreva sua redação aqui..."
-                  className="input-glass min-h-[400px] resize-none font-mono text-sm leading-relaxed"
-                />
-                <p className="text-xs text-muted-foreground mt-2 flex justify-between">
-                  <span>{content.length} caracteres</span>
-                  <span>Mínimo recomendado: 1800</span>
-                </p>
+                <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded-full text-primary font-medium">
+                  Modo Folha Oficial
+                </span>
               </div>
+
+              <Textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                disabled={loading}
+                placeholder="Digite sua redação aqui..."
+                className="w-full min-h-[500px] p-6 text-lg text-gray-800 bg-white border-2 border-gray-200 rounded-xl shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none leading-relaxed"
+                spellCheck={false}
+              />
+
+              <p className="text-xs text-muted-foreground mt-2 flex justify-between px-1">
+                <span>{content.length} caracteres</span>
+                <span>Mínimo recomendado: 1800</span>
+              </p>
 
               <Button
                 onClick={handleSubmit}
@@ -212,7 +226,7 @@ const Essay = () => {
           </div>
 
           {/* Direita: Feedback */}
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             {feedback ? (
               <div className="animate-in slide-in-from-right-4 duration-500 space-y-6">
 
@@ -271,24 +285,38 @@ const Essay = () => {
                     Avaliação por Competência
                   </h3>
 
-                  {Object.entries(feedback.competencias).map(([key, score]) => (
-                    <div key={key} className="space-y-1">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">
-                          {competencyNames[key as keyof typeof competencyNames]}
-                        </span>
-                        <span className={`font-bold ${getScoreColor(score)}`}>
-                          {score}/200
-                        </span>
+                  {Object.entries(feedback.competencias).map(([key, score]) => {
+                    const percentage = (score / 200) * 100;
+                    let barColor = "bg-rose-500";
+                    let textColor = "text-rose-500";
+
+                    if (percentage >= 80) {
+                      barColor = "bg-emerald-500";
+                      textColor = "text-emerald-500";
+                    } else if (percentage >= 60) {
+                      barColor = "bg-amber-500";
+                      textColor = "text-amber-500";
+                    }
+
+                    return (
+                      <div key={key} className="space-y-1">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">
+                            {competencyNames[key as keyof typeof competencyNames]}
+                          </span>
+                          <span className={`font-bold ${textColor}`}>
+                            {score}/200
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-700/30 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-1000 ${barColor}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-1000 ${getScoreColor(score).replace('text-', 'bg-')}`}
-                          style={{ width: `${(score / 200) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Feedback Text */}
