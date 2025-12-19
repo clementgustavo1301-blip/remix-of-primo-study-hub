@@ -80,6 +80,24 @@ const cleanAndParseJSON = (text: string) => {
 };
 
 
+// Função auxiliar para converter arquivo em GenerativePart
+async function fileToGenerativePart(file: File) {
+  return new Promise<{ inlineData: { data: string; mimeType: string } }>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve({
+          inlineData: { data: reader.result.split(',')[1], mimeType: file.type }
+        });
+      } else {
+        reject(new Error("Falha ao ler arquivo"));
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // --- Types ---
 
 export interface AIResponse<T> {
@@ -227,6 +245,23 @@ export const correctEssay = async (text: string, theme: string = "Tema Livre"): 
       console.error("ERRO 404: Verifique se o modelo 'gemini-1.5-flash-002' está disponível para sua API Key.");
     }
     return { data: null, error: e.message };
+  }
+};
+
+export const transcribeImage = async (imageFile: File): Promise<string> => {
+  try {
+    // Usando explicitamente o modelo Gemma
+    const model = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
+    const imagePart = await fileToGenerativePart(imageFile);
+
+    const prompt = "Você é um especialista em transcrição de manuscritos. Transcreva EXATAMENTE o que está escrito nesta folha de redação. Não adicione saudações, não corrija o texto, apenas retorne o texto transcrito linha por linha.";
+
+    const result = await model.generateContent([prompt, imagePart]);
+    const response = await result.response;
+    return response.text();
+  } catch (e: any) {
+    console.error("Erro na transcrição:", e);
+    throw new Error("Não foi possível ler o manuscrito. Tente uma foto mais nítida.");
   }
 };
 

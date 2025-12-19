@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { correctEssay, EssayFeedback } from "@/services/aiService";
+import { correctEssay, EssayFeedback, transcribeImage } from "@/services/aiService";
 import { updateStreak } from "@/services/streakService";
 import PremiumGuard from "@/components/PremiumGuard";
-import { FileText, Send, Loader2, Trophy, Target, Sparkles } from "lucide-react";
+import { FileText, Send, Loader2, Trophy, Target, Sparkles, Camera } from "lucide-react";
 import Watermark from "@/components/Watermark";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,7 +25,9 @@ const Essay = () => {
   const [content, setContent] = useState("");
   const [theme, setTheme] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [feedback, setFeedback] = useState<EssayFeedback | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchHistory = async () => {
     if (!user) return;
@@ -42,6 +44,29 @@ const Essay = () => {
   useEffect(() => {
     fetchHistory();
   }, [user]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor, selecione uma imagem válida.");
+      return;
+    }
+
+    setIsTranscribing(true);
+    try {
+      const text = await transcribeImage(file);
+      setContent(prev => (prev ? prev + "\n\n" + text : text));
+      toast.success("Manuscrito transcrito com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao ler manuscrito. Tente uma foto mais clara.");
+    } finally {
+      setIsTranscribing(false);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async () => {
     if (!content.trim() || content.length < 100) {
@@ -152,9 +177,30 @@ const Essay = () => {
                 <label className="text-sm font-medium text-foreground">
                   Sua Redação
                 </label>
-                <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded-full text-primary font-medium">
-                  Modo Folha Oficial
-                </span>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                  />
+
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    variant="secondary"
+                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white h-8 text-xs"
+                    disabled={isTranscribing || loading}
+                  >
+                    {isTranscribing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                    {isTranscribing ? "Gemma está lendo..." : "Tirar Foto (Gemma OCR)"}
+                  </Button>
+
+                  <span className="hidden sm:inline-block text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded-full text-primary font-medium">
+                    Modo Folha Oficial
+                  </span>
+                </div>
               </div>
 
               <Textarea
