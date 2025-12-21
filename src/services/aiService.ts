@@ -57,27 +57,28 @@ Você DEVE atribuir nota 1000 se o texto for excelente, mesmo com 1 ou 2 desvios
 `;
 
 // Função auxiliar para limpar Markdown e extrair apenas o objeto JSON
-const cleanAndParseJSON = (text: string) => {
+function cleanAndParseJSON(text: string): any {
   try {
-    // 1. Remove marcadores de código Markdown (```json e ```)
-    let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
+    // 1. Encontra o primeiro '[' e o último ']' (ou '{' e '}')
+    // Adaptado para suportar arrays (pedido) e objetos (existente)
+    const jsonMatch = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
 
-    // 2. Encontra o primeiro '{' e o último '}'
-    const firstOpen = cleaned.indexOf('{');
-    const lastClose = cleaned.lastIndexOf('}');
-
-    // 3. Se encontrar, corta apenas o conteúdo relevante
-    if (firstOpen !== -1 && lastClose !== -1) {
-      cleaned = cleaned.substring(firstOpen, lastClose + 1);
+    if (!jsonMatch) {
+      throw new Error("Nenhum JSON (array ou objeto) encontrado na resposta.");
     }
 
-    // 4. Tenta fazer o parse
-    return JSON.parse(cleaned);
+    // 2. Pega apenas a parte que corresponde ao JSON
+    const cleanJson = jsonMatch[0];
+
+    // 3. Tenta fazer o parse
+    return JSON.parse(cleanJson);
+
   } catch (error) {
     console.error("Falha ao limpar/parsear JSON:", error);
-    throw new Error("Resposta inválida da IA: Não foi possível extrair o JSON.");
+    console.log("Texto original recebido:", text); // Log para debug
+    throw new Error("Erro ao processar resposta da IA.");
   }
-};
+}
 
 
 // Função auxiliar para converter arquivo em GenerativePart
