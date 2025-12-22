@@ -28,7 +28,6 @@ const allNavItems = [
   { to: "/dashboard/flashcards", icon: Brain, label: "Flashcards", premium: true },
   { to: "/dashboard/chat", icon: MessageSquare, label: "Chat IA" },
   { to: "/dashboard/planner", icon: CalendarDays, label: "Agenda" },
-  { to: "/dashboard/planner", icon: CalendarDays, label: "Agenda" },
   { to: "/dashboard/ranking", icon: Trophy, label: "Ranking" },
   { to: "/dashboard/focus", icon: Timer, label: "Focus Room" },
 ];

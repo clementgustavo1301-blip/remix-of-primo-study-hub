@@ -38,7 +38,7 @@ const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
         </div>
 
         {/* Stats: Streak & XP */}
-        <div className="flex items-center gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
           {/* Level Display */}
           <div className="glass-strong rounded-2xl p-6 text-center min-w-[140px]">

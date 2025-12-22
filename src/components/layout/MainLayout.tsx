@@ -5,9 +5,9 @@ import OnboardingModal from "@/components/OnboardingModal";
 
 const MainLayout = () => {
   return (
-    <div className="min-h-screen gradient-bg-animated">
+    <div className="min-h-screen gradient-bg-animated overflow-x-hidden">
       <OnboardingModal />
-      
+
       {/* Desktop Sidebar */}
       <div className="hidden lg:block fixed left-6 top-6 bottom-6 z-50">
         <Sidebar />
