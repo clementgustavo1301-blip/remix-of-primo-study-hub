@@ -40,7 +40,6 @@ interface StudyTask {
   subject: string;
   topic: string | null;
   date: string | null;
-  due_date?: string | null;  // Added for compatibility with database column
   is_done: boolean | null;
   duration_minutes: number | null;
 }
@@ -134,15 +133,15 @@ const Planner = () => {
     const startDate = format(addDays(today, -1), "yyyy-MM-dd");
     const endDate = format(addDays(today, 8), "yyyy-MM-dd");
 
-    console.log(`Buscando tarefas entre ${startDate} e ${endDate} na coluna due_date`);
+    console.log(`Buscando tarefas entre ${startDate} e ${endDate} na coluna date`);
 
     const { data, error } = await supabase
       .from("study_tasks")
       .select("*")
       .eq("user_id", user?.id)
-      .gte("due_date", startDate)
-      .lte("due_date", endDate)
-      .order("due_date", { ascending: true });
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .order("date", { ascending: true });
 
     if (error) {
       console.error("Error fetching tasks:", error);
@@ -262,7 +261,7 @@ const Planner = () => {
     const targetDate = format(day, "yyyy-MM-dd");
 
     return tasks.filter(t => {
-      const dateToUse = t.due_date || t.date;
+      const dateToUse = t.date;
       if (!dateToUse) return false;
 
       const taskDate = dateToUse.substring(0, 10); // Handle both "2024-12-18" and "2024-12-18T10:00:00"
@@ -303,70 +302,52 @@ const Planner = () => {
       }
 
       if (result.data) {
-        // Safe access with fallback logic
-        const rawData = result.data;
-        // Tenta encontrar o array correto independentemente da chave
-        // @ts-ignore
-        const tasksToSave = rawData?.tasks || rawData?.cronograma || rawData?.schedule || (Array.isArray(rawData) ? rawData : []);
+        const rawData: any = result.data;
+        // Extract tasks safely
+        const tasksToSave = rawData.tasks || (Array.isArray(rawData) ? rawData : []);
 
-        if (!Array.isArray(tasksToSave) || tasksToSave.length === 0) {
-          console.error("Nenhuma tarefa encontrada no JSON:", rawData);
-          toast.error("A IA respondeu, mas não gerou tarefas válidas.");
+        if (tasksToSave.length === 0) {
+          toast.error("A IA não gerou tarefas.");
           return;
         }
 
-        console.log("Tarefas extraídas com sucesso:", tasksToSave.length);
-
-        // 1. Strict Reset: Delete ALL existing tasks/events for this user
-        console.log("Resetting planner for user:", user.id);
-
+        // 1. Reset tasks for user
         await supabase.from("study_tasks").delete().eq("user_id", user.id);
-        await supabase.from("events").delete().eq("user_id", user.id);
 
         // 2. Insert new tasks
-        const tasksToInsert = tasksToSave.map((task) => ({
+        const tasksToInsert = tasksToSave.map((task: any) => ({
           user_id: user.id,
-          title: task.topic || task.subject,
           subject: task.subject,
           topic: task.topic,
-          due_date: task.date,
+          date: task.date,
           duration_minutes: task.duration_minutes,
           is_done: false
         }));
 
-        // 1. Salva no banco e JÁ PEDE OS DADOS DE VOLTA (.select())
         const { data: savedTasks, error } = await supabase
           .from('study_tasks')
           .insert(tasksToInsert)
-          .select(); // <--- CRUCIAL: Retorna as tarefas com o ID gerado
+          .select();
 
         if (error) {
-          console.error("Erro ao salvar:", error);
-          toast.error("Erro ao salvar cronograma.");
+          toast.error("Erro ao salvar.");
         } else if (savedTasks) {
-          // 2. Atualiza o estado com os dados REAIS do banco (que possuem ID)
-          console.log("Tarefas salvas com IDs:", savedTasks);
           setTasks(savedTasks as StudyTask[]);
+          toast.success("Cronograma criado!");
 
-          toast.success("Cronograma criado e salvo!");
-
-          // Opcional: Atualizar a flag para evitar refetch desnecessário
+          // Prevent immediate refetch from overwriting current state
           isGeneratingRef.current = true;
-          setTimeout(() => { isGeneratingRef.current = false; }, 3000);
-        }
+          setTimeout(() => {
+            isGeneratingRef.current = false;
+          }, 3000);
 
-        // Show Strategy Summary!
-        toast.success("Estratégia SISU Gerada! 🚀");
-        if (result.data.summary) {
-          toast(result.data.summary, {
-            duration: 8000,
-            icon: '🧠',
-            style: {
-              background: '#1e1e2e',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }
-          });
+          if (rawData.summary) {
+            toast(rawData.summary, {
+              duration: 8000,
+              icon: '🧠',
+              style: { background: '#1e1e2e', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
+            });
+          }
         }
       }
     } catch (error) {
@@ -762,7 +743,88 @@ const Planner = () => {
         onOpenChange={setShowEventModal}
         onAdd={handleAddEvent}
       />
+
+      {/* Day Details Modal */}
+      <DayDetailsModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        day={activeDay}
+        tasks={selectedDayTasks}
+        onToggleTask={toggleTask}
+      />
     </div>
+  );
+};
+
+interface DayDetailsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  day: Date | null;
+  tasks: StudyTask[];
+  onToggleTask: (id: string, current: boolean | null) => void;
+}
+
+const DayDetailsModal = ({ open, onOpenChange, day, tasks, onToggleTask }: DayDetailsModalProps) => {
+  if (!day) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-strong border-white/20 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-foreground">
+            {format(day, "EEEE, d 'de' MMMM", { locale: ptBR })}
+          </DialogTitle>
+          <DialogDescription>
+            Tarefas planejadas para este dia
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto pr-2">
+          {tasks.length === 0 ? (
+            <div className="text-center py-8 opacity-50">
+              <BookOpen className="h-8 w-8 mx-auto mb-2" />
+              <p>Nenhuma tarefa para este dia.</p>
+            </div>
+          ) : (
+            tasks.map((task) => (
+              <div
+                key={task.id}
+                onClick={() => onToggleTask(task.id, task.is_done)}
+                className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${task.is_done
+                  ? "bg-white/5 border-white/10 opacity-60"
+                  : "bg-primary/5 border-primary/20 hover:bg-primary/10"
+                  }`}
+              >
+                <div className="mt-1">
+                  {task.is_done ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-400" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-muted-foreground" />
+                  )
+                  }
+                </div>
+                <div className="flex-1">
+                  <p className={`font-semibold ${task.is_done ? "line-through" : ""}`}>
+                    {task.topic || task.subject}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{task.subject}</p>
+                  {task.duration_minutes && (
+                    <div className="flex items-center gap-1 mt-2 text-[10px] text-primary/80">
+                      <Clock className="h-3 w-3" />
+                      <span>{task.duration_minutes} minutos</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <Button onClick={() => onOpenChange(false)} className="w-full">
+          Fechar
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 };
 

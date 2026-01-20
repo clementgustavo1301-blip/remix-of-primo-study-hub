@@ -276,10 +276,10 @@ export const createStudyPlan = async (
   try {
     const todayStr = new Date().toLocaleDateString("pt-BR");
 
-    // Format difficulty map for prompt
-    const difficultyStr = Object.entries(difficulties)
-      .map(([area, level]) => `- ${area}: ${level}`)
-      .join("\n");
+    // Format difficulty list for prompt
+    const difficultyStr = difficulties.length > 0
+      ? difficulties.map(d => `- ${d}`).join("\n")
+      : "Nenhuma dificuldade específica relatada.";
 
     const prompt = `
       Atue como um ESTRATEGISTA DO ENEM e SISU.
@@ -306,14 +306,17 @@ export const createStudyPlan = async (
       - Distribua as tarefas sequencialmente a partir de ${todayStr}.
 
       RESPOSTA ESPERADA (JSON PURO, SEM MARKDOWN, SEM BLOCOS DE CÓDIGO):
-      [
-        {
-          "subject": "Matéria (Ex: Física)",
-          "topic": "[Natureza] Nome do Tópico (Ex: Ondulatória)", 
-          "duration_minutes": 90,
-          "date": "YYYY-MM-DD"
-        }
-      ]
+      {
+        "summary": "Breve resumo da estratégia (1-2 frases) focada no SISU",
+        "tasks": [
+          {
+            "subject": "Matéria (Ex: Física)",
+            "topic": "[Natureza] Nome do Tópico (Ex: Ondulatória)", 
+            "duration_minutes": 90,
+            "date": "YYYY-MM-DD"
+          }
+        ]
+      }
       *Nota: No campo 'topic', coloque a Área entre colchetes no início, ex: [Humanas], [Natureza], [Linguagens], [Matemática], [Redação].
     `;
 
