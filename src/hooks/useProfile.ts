@@ -12,7 +12,6 @@ export interface Profile {
   last_activity_date: string | null;
   avatar_url: string | null;
   is_pro: boolean | null;
-  xp_points: number | null;
   xp: number | null;
   level: number | null;
   email?: string | null;
@@ -39,7 +38,38 @@ export function useProfile() {
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data as unknown as Profile);
+
+      if (data) {
+        // Check for broken streak (Lazy Reset)
+        const today = new Date();
+        const lastActive = data.last_activity_date ? new Date(data.last_activity_date) : null;
+
+        let currentData = { ...data };
+
+        if (lastActive) {
+          const diffTime = Math.abs(today.setHours(0, 0, 0, 0) - lastActive.setHours(0, 0, 0, 0));
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          // If difference is > 1 day (missed yesterday), reset streak
+          if (diffDays > 1 && data.streak_count > 0) {
+            console.log("Streak broken! Resetting to 0.");
+
+            // Update local state immediately
+            currentData.streak_count = 0;
+
+            // Update DB asynchronously
+            supabase
+              .from("profiles")
+              .update({ streak_count: 0 })
+              .eq("id", user.id)
+              .then(({ error }) => {
+                if (error) console.error("Error resetting streak in DB:", error);
+              });
+          }
+        }
+
+        setProfile(currentData as unknown as Profile);
+      }
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {

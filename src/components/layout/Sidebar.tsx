@@ -54,10 +54,10 @@ const Sidebar = () => {
       )}
 
       {/* XP Badge */}
-      {profile && profile.xp_points !== undefined && profile.xp_points > 0 && (
+      {profile && profile.xp !== undefined && profile.xp > 0 && (
         <div className="glass rounded-xl px-4 py-2 mb-4 text-center">
           <span className="text-sm text-muted-foreground">XP Total: </span>
-          <span className="font-bold text-primary">{profile.xp_points}</span>
+          <span className="font-bold text-primary">{profile.xp}</span>
         </div>
       )}
 
