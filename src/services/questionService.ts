@@ -38,8 +38,8 @@ export const generateAndCacheQuestions = async (
   // 2. Gera com IA
   try {
     // --- Model Selection Strategy ---
-    // Switched to Flash for speed as primary model
-    const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Usando Gemma-3-27b-it como modelo primário (mais tokens)
+    const primaryModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
 
     // Define instruções extras baseadas na dificuldade escolhida
     let instrucaoNivel = "";
@@ -87,7 +87,7 @@ export const generateAndCacheQuestions = async (
       ]
     `;
 
-    console.log("Tentando gerar com Gemini 1.5 Flash...");
+    console.log("Tentando gerar com Gemma-3-27b-it...");
     const result = await primaryModel.generateContent(prompt);
 
     const text = result.response.text().replace(/```json|```/g, "").trim();

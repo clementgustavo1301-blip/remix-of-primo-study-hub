@@ -3,9 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || "");
 
 // --- Model Strategy ---
-// Usando Gemini 1.5 Flash como modelo primário para melhor estabilidade e velocidade
-const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Usando Gemma-3-27b-it como modelo primário (configuração solicitada de maior tokens)
+const primaryModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
+const fallbackModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
 
 const generateWithFallback = async (prompt: string) => {
   try {
