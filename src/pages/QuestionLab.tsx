@@ -109,24 +109,28 @@ const QuestionLab = () => {
     setSelectedAnswer(idx);
     setShowResult(true);
 
-    if (question && idx === question.correctAnswer) {
-      toast.success("Resposta Certa! 🎯");
-      if (user) {
-        await updateStreak(user.id);
-        await addXP(10);
-        window.dispatchEvent(new Event("profile_updated"));
+    if (question) {
+      const isCorrect = idx === question.correctAnswer;
+
+      // Salva automaticamente para as estatísticas do dashboard
+      await saveQuestion({
+        content: question,
+        subject,
+        topic: topic || undefined,
+        is_correct: isCorrect
+      });
+
+      if (isCorrect) {
+        toast.success("Resposta Certa! 🎯");
+        if (user) {
+          await updateStreak(user.id);
+          await addXP(10);
+          window.dispatchEvent(new Event("profile_updated"));
+        }
+      } else {
+        toast.error("Resposta Incorreta ❌");
       }
     }
-  };
-
-  const handleSave = async () => {
-    if (!question || selectedAnswer === null) return;
-    await saveQuestion({
-      content: question,
-      subject,
-      topic: topic || undefined,
-      is_correct: selectedAnswer === question.correctAnswer
-    });
   };
 
   const handleNext = () => {
@@ -329,10 +333,7 @@ const QuestionLab = () => {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button onClick={handleSave} className="btn-glass flex-1">
-                    <BookmarkPlus className="h-4 w-4 mr-2" />Salvar na Biblioteca
-                  </Button>
-                  <Button onClick={() => mode === 'bank' ? searchPool() : generateWithAI(false)} className="btn-primary flex-1">
+                  <Button onClick={() => mode === 'bank' ? searchPool() : generateWithAI(false)} className="btn-primary w-full">
                     <ChevronRight className="h-4 w-4 mr-2" />Próxima Questão
                   </Button>
                 </div>

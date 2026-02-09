@@ -105,6 +105,7 @@ const Planner = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState("cronograma");
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
   // Day Details Modal State
   const [selectedDayTasks, setSelectedDayTasks] = useState<StudyTask[]>([]);
@@ -383,6 +384,33 @@ const Planner = () => {
     toast.success("Evento adicionado! 📅");
   };
 
+  const handleAddTask = async (taskData: { subject: string; topic: string; date: string; duration: number }) => {
+    if (!user) return;
+
+    const { data: savedTask, error } = await supabase
+      .from("study_tasks")
+      .insert({
+        user_id: user.id,
+        subject: taskData.subject,
+        topic: taskData.topic,
+        date: taskData.date,
+        duration_minutes: taskData.duration,
+        is_done: false
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Erro ao adicionar tarefa:", error);
+      toast.error("Erro ao adicionar tarefa");
+      return;
+    }
+
+    setTasks(prev => [...prev, savedTask as StudyTask]);
+    setShowTaskModal(false);
+    toast.success("Tarefa adicionada! 📚");
+  };
+
   if (loading || generating) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6">
@@ -436,17 +464,21 @@ const Planner = () => {
         {/* Cronograma IA Tab */}
         <TabsContent value="cronograma" className="mt-6 space-y-6">
           {/* Action Button */}
-          <div className="flex justify-end">
+          <div className="flex flex-col sm:flex-row justify-end gap-3">
+            <Button onClick={() => setShowTaskModal(true)} variant="outline" className="glass hover:bg-white/10">
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Tarefa Manual
+            </Button>
             {profile?.is_pro ? (
               <Button onClick={() => setShowWizard(true)} className="btn-primary group">
                 <Sparkles className="h-4 w-4 mr-2 group-hover:animate-pulse" />
-                Criar Novo Cronograma
+                Criar Novo Cronograma IA
               </Button>
             ) : (
               <PremiumGuard featureName="o Planner Inteligente">
                 <Button className="btn-primary">
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Criar Novo Cronograma
+                  Criar Novo Cronograma IA
                 </Button>
               </PremiumGuard>
             )}
@@ -742,6 +774,13 @@ const Planner = () => {
         open={showEventModal}
         onOpenChange={setShowEventModal}
         onAdd={handleAddEvent}
+      />
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        open={showTaskModal}
+        onOpenChange={setShowTaskModal}
+        onAdd={handleAddTask}
       />
 
       {/* Day Details Modal */}
@@ -1175,6 +1214,115 @@ const AddEventModal = ({ open, onOpenChange, onAdd }: AddEventModalProps) => {
               placeholder="Ex: Sala 201, Cursinho, Escola..."
               className="input-glass"
             />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} className="flex-1 btn-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
+interface AddTaskModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (data: { subject: string; topic: string; date: string; duration: number }) => void;
+}
+
+const AddTaskModal = ({ open, onOpenChange, onAdd }: AddTaskModalProps) => {
+  const [subject, setSubject] = useState("");
+  const [topic, setTopic] = useState("");
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [duration, setDuration] = useState(60);
+
+  const handleSubmit = () => {
+    if (!subject || !topic || !date) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+    onAdd({ subject, topic, date, duration });
+    setSubject("");
+    setTopic("");
+    setDate(format(new Date(), "yyyy-MM-dd"));
+    setDuration(60);
+  };
+
+  const subjects = [
+    "Matemática", "Física", "Química", "Biologia",
+    "Português", "Redação", "Literatura", "História",
+    "Geografia", "Filosofia", "Sociologia", "Inglês"
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-strong border-white/20 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-primary" />
+            Adicionar Tarefa
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Adicione uma tarefa de estudo manualmente ao seu cronograma
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="task-subject">Matéria</Label>
+            <Select value={subject} onValueChange={setSubject}>
+              <SelectTrigger className="input-glass">
+                <SelectValue placeholder="Selecione a matéria" />
+              </SelectTrigger>
+              <SelectContent className="glass-strong border-white/20">
+                {subjects.map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+                <SelectItem value="Outro">Outro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="task-topic">Tópico / Conteúdo</Label>
+            <Input
+              id="task-topic"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Ex: Estequiometria, Brasil Colônia..."
+              className="input-glass"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-date">Data</Label>
+              <Input
+                id="task-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="input-glass"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-duration">Duração (min)</Label>
+              <Input
+                id="task-duration"
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                className="input-glass"
+              />
+            </div>
           </div>
         </div>
 

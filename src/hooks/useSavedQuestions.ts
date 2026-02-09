@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 
 export interface SavedQuestion {
   id: string;
@@ -70,11 +70,9 @@ export function useSavedQuestions() {
       if (error) throw error;
 
       setSavedQuestions((prev) => [data as SavedQuestion, ...prev]);
-      toast.success(question.is_correct ? "Acerto salvo!" : "Erro salvo no caderno!");
       return { error: null };
     } catch (error) {
       console.error("Error saving question:", error);
-      toast.error("Erro ao salvar questão");
       return { error: error as Error };
     }
   };

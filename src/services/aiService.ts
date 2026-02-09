@@ -3,9 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || "");
 
 // --- Model Strategy ---
-// Usando Gemma-3-27b-it como modelo primário (configuração que estava funcionando)
-const primaryModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
-const fallbackModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
+// Usando Gemini 1.5 Flash como modelo primário para melhor estabilidade e velocidade
+const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const generateWithFallback = async (prompt: string) => {
   try {
@@ -339,12 +339,12 @@ export const createStudyPlan = async (
     const result = await generateWithFallback(prompt);
     const data = cleanAndParseJSON(result.response.text());
 
-    if (!Array.isArray(data)) {
-      // Log para debug
-      console.log("ESTRUTURA DO JSON RECEBIDO (Possivel erro de formato):", Object.keys(data), data);
-      // Não lança erro imediatamente, deixa o Planner tentar extrair
-    } else {
+    if (data && data.tasks) {
+      console.log("ESTRUTURA DO JSON RECEBIDO: Objeto com", data.tasks.length, "tarefas");
+    } else if (Array.isArray(data)) {
       console.log("ESTRUTURA DO JSON RECEBIDO (Array):", data.length, "itens");
+    } else {
+      console.log("ESTRUTURA DO JSON RECEBIDO (Desconhecida):", data);
     }
 
     return { data, error: null };
