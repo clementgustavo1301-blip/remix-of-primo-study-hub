@@ -3,8 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_API_KEY || "");
 
 // --- Model Strategy ---
+// Usando Gemma-3-27b-it como modelo primário (configuração que estava funcionando)
 const primaryModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
-const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-002" });
+const fallbackModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
 
 const generateWithFallback = async (prompt: string) => {
   try {
@@ -12,11 +13,26 @@ const generateWithFallback = async (prompt: string) => {
     const result = await primaryModel.generateContent(prompt);
     console.log("✅ Gemma Success");
     return result;
-  } catch (e) {
-    console.warn("⚠️ Fallback para Gemini 1.5 Flash 002", e);
-    const result = await fallbackModel.generateContent(prompt);
-    console.log("✅ Fallback Success");
-    return result;
+  } catch (e: any) {
+    console.warn("⚠️ Erro no modelo primário:", e.message);
+
+    // Check for API Key validity before fallback
+    if (e.message?.includes("API_KEY_INVALID") || e.message?.includes("API key expired")) {
+      console.error("❌ API Key Expired or Invalid");
+      throw new Error("Sua chave da API do Google (Gemini) expirou ou é inválida. Atualize no arquivo .env");
+    }
+
+    try {
+      console.warn("⚠️ Fallback para Gemma-3-27b-it (tentativa 2)");
+      const result = await fallbackModel.generateContent(prompt);
+      console.log("✅ Fallback Success");
+      return result;
+    } catch (fallbackError: any) {
+      if (fallbackError.message?.includes("API_KEY_INVALID") || fallbackError.message?.includes("API key expired")) {
+        throw new Error("Sua chave da API do Google (Gemini) expirou ou é inválida. Atualize no arquivo .env");
+      }
+      throw fallbackError;
+    }
   }
 };
 
@@ -243,7 +259,7 @@ export const correctEssay = async (text: string, theme: string = "Tema Livre"): 
     console.error("Erro na chamada AI:", e);
     console.error("Erro detalhado:", e.message);
     if (e.message?.includes("404")) {
-      console.error("ERRO 404: Verifique se o modelo 'gemini-1.5-flash-002' está disponível para sua API Key.");
+      console.error("ERRO 404: Verifique se o modelo 'gemma-3-27b-it' está disponível para sua API Key.");
     }
     return { data: null, error: e.message };
   }
@@ -336,7 +352,7 @@ export const createStudyPlan = async (
     console.error("Erro na chamada AI (Plan):", e);
     console.error("Erro detalhado:", e.message);
     if (e.message?.includes("404")) {
-      console.error("ERRO 404: Verifique se o modelo 'gemini-1.5-flash-002' está disponível para sua API Key.");
+      console.error("ERRO 404: Verifique se o modelo 'gemma-3-27b-it' está disponível para sua API Key.");
     }
     return { data: null, error: e.message };
   }

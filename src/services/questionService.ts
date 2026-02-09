@@ -8,110 +8,109 @@ export const generateAndCacheQuestions = async (
   subject: string,
   topic: string,
   difficulty: string = 'medium',
-  userId: string | undefined
+  userId: string | undefined,
+  bypassCache: boolean = false
 ) => {
-  console.log(`🚀 Iniciando: ${topic} (${subject})`);
+  console.log(`🚀 Iniciando: ${topic} (${subject}) - Bypass Cache: ${bypassCache}`);
 
-  // 1. Check Cache (Database)
-  try {
-    const { data: existing, error } = await supabase
-      .from('questions_pool')
-      .select('content')
-      .eq('subject', subject)
-      .eq('topic', topic)
-      .eq('difficulty', difficulty)
-      .limit(1);
+  // 1. Check Cache (Database) - Only if NOT bypassing
+  if (!bypassCache) {
+    try {
+      const { data: existing, error } = await supabase
+        .from('questions_pool')
+        .select('content')
+        .eq('subject', subject)
+        .eq('topic', topic)
+        .eq('difficulty', difficulty)
+        .limit(5); // Fetch more to avoid repetition
 
-    if (existing && existing.length > 0) {
-      console.log("✅ ACHOU NO BANCO!");
-      return existing[0].content;
+      if (existing && existing.length > 0) {
+        // Return a random one from the cached pool
+        const randomIndex = Math.floor(Math.random() * existing.length);
+        console.log("✅ ACHOU NO BANCO! Retornando questão aleatória do cache.");
+        return existing[randomIndex].content;
+      }
+    } catch (err) {
+      console.warn("Erro ao buscar cache", err);
     }
-  } catch (err) {
-    console.warn("Erro ao buscar cache", err);
   }
 
   // 2. Gera com IA
   try {
-    try {
-      console.log("Tentando listar modelos...");
-      // @ts-ignore
-      if (typeof genAI.listModels === 'function') {
-        // @ts-ignore
-        const models = await genAI.listModels();
-        console.log("Modelos disponíveis:", models);
-      }
-    } catch (e) {
-      console.error("Erro ao listar", e);
-    }
-
     // --- Model Selection Strategy ---
-    console.log("Inicializando estratégia de modelos...");
-
-    // Configuração dos modelos
-    const primaryModel = genAI.getGenerativeModel({ model: "gemma-3-27b-it" }, { apiVersion: "v1beta" });
-    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-002" });
+    // Switched to Flash for speed as primary model
+    const primaryModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // Define instruções extras baseadas na dificuldade escolhida
     let instrucaoNivel = "";
 
     if (difficulty === 'hard') {
       instrucaoNivel = `
-        NÍVEL DIFÍCIL (HIGH STAKES):
-        - Utilize textos-base longos, complexos, acadêmicos ou com linguagem técnica.
-        - As questões devem exigir INTERDISCIPLINARIDADE (relacionar com outras matérias).
-        - As alternativas incorretas (distratores) devem ser muito plausíveis e sutis.
-        - Exija raciocínio lógico avançado, não apenas memória.`;
+        NÍVEL DIFÍCIL (HIGH STAKES / MED SCHOOL):
+        - Utilize textos-base longos, complexos (artigos científicos, literatura clássica, dados estatísticos).
+        - As questões devem exigir INTERDISCIPLINARIDADE (ex: Biologia com Química, História com Sociologia).
+        - As alternativas incorretas (distratores) devem ser muito plausíveis, exigindo precisão conceitual.
+        - Exija raciocínio lógico avançado e análise crítica, não apenas memorização.
+        - Evite perguntas diretas ("O que é X?"). Prefira situações-problema.`;
     } else {
       instrucaoNivel = `
-        NÍVEL PADRÃO (ENEM):
-        - Foco em interpretação de texto e aplicação direta de conceitos.
-        - Dificuldade balanceada para o aluno médio.`;
+        NÍVEL PADRÃO (ENEM / VESTIBULAR):
+        - Foco em interpretação de texto e aplicação de conceitos em situações do cotidiano.
+        - Dificuldade balanceada para o aluno médio.
+        - Contextualize a questão (situação prática).`;
     }
 
     const prompt = `
-      Atue como um elaborador sênior do INEP.
-      Crie 5 questões de múltipla escolha sobre "${topic}" (${subject}).
+      Atue como um elaborador sênior do INEP (Brasil).
+      Crie UMA questão de múltipla escolha INÉDITA sobre "${topic}" (${subject}).
       
       INSTRUÇÕES DE DIFICULDADE:
       ${instrucaoNivel}
 
       REGRAS OBRIGATÓRIAS:
       1. Idioma: Português do Brasil.
-      2. Estrutura: Texto-base + Comando + 5 Alternativas.
-      3. Formatação: 
+      2. Estrutura: Texto-base Obrigatório + Enunciado/Comando + 5 Alternativas.
+      3. O Texto-base deve ser rico e não apenas uma frase solta.
+      4. Formatação: 
          - As opções ("options") DEVEM conter APENAS o texto da resposta. NÃO inclua "A)", "B)", "a.", etc.
-         - A resposta correta ("correctAnswer") DEVE ser o índice numérico (0 para A, 1 para B, 2 para C, etc).
+         - A resposta correta ("correctAnswer") DEVE ser o índice numérico (0 para A, 1 para B, etc).
+      5. Explicação: Forneça uma explicação detalhada e educativa.
 
-      Responda APENAS JSON Array válido, SEM blocos de código ou markdown:
+      Responda APENAS JSON Array com 1 objeto, SEM markdown:
       [
         {
-          "question": "Texto base... \\n\\n Comando da questão...",
-          "options": ["Texto da alternativa A", "Texto da alternativa B", "Texto da alternativa C", "Texto da alternativa D", "Texto da alternativa E"],
+          "question": "Texto base completo... \\n\\n Comando da questão...",
+          "options": ["Texto A", "Texto B", "Texto C", "Texto D", "Texto E"],
           "correctAnswer": 0,
-          "explanation": "Explicação detalhada citando a competência exigida."
+          "explanation": "Explicação detalhada..."
         }
       ]
     `;
 
-    let result;
-    try {
-      console.log("Tentando gerar com Gemma-3-27b-it...");
-      result = await primaryModel.generateContent(prompt);
-      console.log("✅ Sucesso com Gemma!");
-    } catch (gemmaError) {
-      console.warn("⚠️ Gemma falhou, tentando fallback para Gemini 1.5 Flash 002...", gemmaError);
-      result = await fallbackModel.generateContent(prompt);
-      console.log("✅ Sucesso com Fallback (Gemini Flash)!");
-    }
+    console.log("Tentando gerar com Gemini 1.5 Flash...");
+    const result = await primaryModel.generateContent(prompt);
+
     const text = result.response.text().replace(/```json|```/g, "").trim();
-    const json = JSON.parse(text);
+    // Sanitize json string if needed
+    const cleanJson = text.replace(/^json\s*/, "");
+    const json = JSON.parse(cleanJson);
+
+    console.log("✅ Sucesso com IA!");
 
     // 3. Salva no Banco
-    if (userId) {
+    if (userId && Array.isArray(json) && json.length > 0) {
+      // Save specifically this question
+      const questionToSave = json[0];
+      // We wrap it in an array to match the expected 'content' format if logic expects array, 
+      // OR we save just the object if that's how we want to query it. 
+      // Looking at legacy code, it returns `json` which is an array `[{...}]`.
+
       const { error } = await supabase.from('questions_pool').insert({
         created_by: userId,
-        subject, topic, difficulty,
-        content: json,
+        subject,
+        topic,
+        difficulty,
+        content: json, // Save the array as received
         is_public: true
       });
       if (error) console.error("❌ Erro ao salvar:", error);
@@ -125,7 +124,7 @@ export const generateAndCacheQuestions = async (
 
     // Tratamento específico de Cota (429)
     if (error.message?.includes("429") || error.message?.includes("quota")) {
-      throw new Error("Limite do modelo experimental atingido. Aguarde um momento.");
+      throw new Error("Limite do serviço de IA atingido temporariamente. Tente novamente em instantes.");
     }
 
     throw new Error(`Falha ao gerar questões: ${error.message || "Erro desconhecido"}`);
